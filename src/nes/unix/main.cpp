@@ -1,0 +1,2042 @@
+/*
+	Nestopia / Linux
+	Original Port by R. Belmont
+	Resurrected by R. Danbrook
+	
+	main.cpp - main file
+*/
+
+#include <iostream>
+#include <fstream>
+#include <strstream>
+#include <sstream>
+#include <iomanip>
+#include <SDL.h>
+#include <string.h>
+#include <cassert>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <vector>
+
+#ifdef BSD
+#include <libgen.h>
+#endif
+
+#include "core/api/NstApiEmulator.hpp"
+#include "core/api/NstApiVideo.hpp"
+#include "core/api/NstApiSound.hpp"
+#include "core/api/NstApiInput.hpp"
+#include "core/api/NstApiMachine.hpp"
+#include "core/api/NstApiUser.hpp"
+#include "core/api/NstApiNsf.hpp"
+#include "core/api/NstApiMovie.hpp"
+#include "core/api/NstApiFds.hpp"
+#include "core/api/NstApiRewinder.hpp"
+#include "core/api/NstApiCartridge.hpp"
+#include "core/api/NstApiCheats.hpp"
+#include "core/NstCrc32.hpp"
+#include "core/NstChecksum.hpp"
+#include "core/NstXml.hpp"
+#include "oss.h"
+#include "settings.h"
+#include "auxio.h"
+#include "input.h"
+#include "controlconfig.h"
+#include "cheats.h"
+#include "seffect.h"
+#include "main.h"
+#if defined(INCLUDE_OPENGL) /* AWH */
+#include "GL/glu.h"
+#endif /* INCLUDE_OPENGL */
+
+#define NST_VERSION "1.43"
+#if 0 // AWH
+extern "C" {
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+
+#include "callbacks.h"
+}
+
+#include "uihelp.h"
+#else
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include "gui.h"
+#endif // AWH
+
+using namespace Nes::Api;
+using namespace LinuxNst;
+
+// base class, all interfaces derives from this
+Emulator emulator;
+
+// forward declaration
+void SetupVideo();
+void SetupSound();
+void SetupInput();
+
+SDL_Surface *screen;
+#if 1 // AWH
+extern SDL_Surface *screen256;
+#endif // AWH
+
+static short lbuf[48000];
+static long exholding[48000*2];
+
+static unsigned short keys[65536];
+
+static int updateok, playing = 0, cur_width, cur_Rwidth, cur_height, cur_Rheight, loaded = 0, framerate;
+static int nst_quit = 0, nsf_mode = 0, state_save = 0, state_load = 0, movie_save = 0, movie_load = 0, movie_stop = 0;
+int schedule_stop = 0;
+static SDL_Joystick *joy[10];
+
+int xres;
+int yres;
+
+extern int lnxdrv_apimode;
+#if 0 // AWH
+extern GtkWidget *mainwindow;
+extern char windowid[24];
+#else
+char savedirname[1024];
+char sramname[512]; /* AWH - Used to save battery-backed stuff */
+#endif // AWH
+static char savename[512], capname[512], gamebasename[512];
+static char caption[128];
+char rootname[512], lastarchname[512];
+
+static InputDefT *ctl_defs;
+
+static Video::Output *cNstVideo;
+static Sound::Output *cNstSound;
+static Input::Controllers *cNstPads;
+static Cartridge::Database::Entry dbentry;
+
+static Settings *sSettings;
+#if 0 // AWH
+static CheatMgr *sCheatMgr;
+#endif // AWH
+static bool         linear_filter  = false;
+#if defined(INCLUDE_OPENGL) /* AWH */
+static bool         using_opengl  = false;
+static GLuint       screenTexID  = 0;
+static int          gl_w, gl_h;
+#endif /* INCLUDE_OPENGL */
+
+static void         *intbuffer;	// intermediate buffer: the NST engine draws into this, and we may blit it
+				// either as-is or in other ways
+
+// get the favored system selected by the user
+static Machine::FavoredSystem get_favored_system(void)
+{
+	switch (sSettings->GetPrefSystem())
+	{
+		case 0:
+			return Machine::FAVORED_NES_NTSC;
+			break;
+
+		case 1:
+			return Machine::FAVORED_NES_PAL;
+			break;
+
+		case 2:
+			return Machine::FAVORED_FAMICOM;
+			break;
+
+		case 3:
+			return Machine::FAVORED_DENDY;
+			break;
+	}
+
+	return Machine::FAVORED_NES_NTSC;
+}
+
+// convert a number into the next highest power of 2
+static int powerOfTwo( const int value )
+{
+	int result = 1;
+	while ( result < value )
+		result <<= 1;
+	return result;	
+}
+
+#if defined(INCLUDE_OPENGL) /* AWH */
+// init OpenGL and set up for blitting
+static void opengl_init_structures()
+{
+	int scalefactor =  sSettings->GetScaleAmt() + 1;
+
+	glEnable( GL_TEXTURE_2D );
+
+	gl_w = powerOfTwo(cur_width);
+	gl_h = powerOfTwo(cur_height);
+
+	glGenTextures( 1, &screenTexID ) ;
+	glBindTexture( GL_TEXTURE_2D, screenTexID ) ;
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, linear_filter ? GL_LINEAR : GL_NEAREST) ;
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST ) ;
+
+	glViewport( 0,0, screen->w, screen->h );
+	glDisable( GL_DEPTH_TEST );
+	glDisable( GL_ALPHA_TEST );
+	glDisable( GL_BLEND );
+	glDisable( GL_LIGHTING );
+	glDisable( GL_TEXTURE_3D_EXT );
+	glMatrixMode( GL_PROJECTION );
+	glLoadIdentity();
+	glOrtho(0.0, (GLdouble)screen->w, (GLdouble)screen->h, 0.0, 0.0, -1.0);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+}
+
+// tears down OpenGL when it's no longer needed
+static void opengl_cleanup()
+{
+	if (using_opengl)
+	{
+		SDL_FreeSurface( screen );
+		glDeleteTextures( 1, &screenTexID );
+		if (intbuffer)
+		{
+			free(intbuffer);
+			intbuffer = NULL;
+		}
+	}
+}
+
+// blit the image using OpenGL
+static void opengl_blit()
+{
+	double gl_blit_width = (double)cur_width / (double)gl_w;
+	double gl_blit_height = (double)cur_height / (double)gl_h;
+
+	glTexImage2D( GL_TEXTURE_2D,
+    	          0,
+    	          GL_RGBA,
+    	          gl_w, gl_h,
+    	          0,
+    	          GL_BGRA,
+    	          GL_UNSIGNED_BYTE,
+		  intbuffer  ) ;
+	glBegin( GL_QUADS ) ;
+		glTexCoord2f(gl_blit_width, gl_blit_height); glVertex2i(cur_Rwidth, cur_Rheight);
+		glTexCoord2f(gl_blit_width, 0.0f ); glVertex2i(cur_Rwidth,  0);
+		glTexCoord2f(0.0f, 0.0f ); glVertex2i(0, 0);
+		glTexCoord2f(0.0f, gl_blit_height); glVertex2i(0, cur_Rheight);
+	glEnd();
+
+	SDL_GL_SwapBuffers();	
+}
+#endif /* INCLUDE_OPENGL */
+
+// *******************
+// emulation callbacks
+// *******************
+
+long Linux_LockScreen(void*& ptr)
+{
+#if defined(INCLUDE_OPENGL) /* AWH */
+	if (using_opengl)		// have the engine blit directly to our memory buffer
+	{
+		ptr = intbuffer;
+		return gl_w*4;
+	}
+	else
+#endif /* INCLUDE_OPENGL */
+	{
+		if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
+
+		ptr = intbuffer;
+	}
+	return screen->pitch;
+}
+
+void Linux_UnlockScreen(void*)
+{
+#if defined(INCLUDE_OPENGL) /* AWH */
+	if (using_opengl)
+	{
+		opengl_blit();
+	}
+	else
+#endif /* INCLUDE_OPENGL */
+	{
+		unsigned short *src, *dst1;
+		unsigned int *srcL, *dst1L;
+		int x, y, vdouble;
+
+		// is this a software x2 expand for NTSC mode?
+		vdouble = 0;
+		if (screen->h == (cur_height<<1))
+		{
+			vdouble = 1;
+		}
+
+		if (screen->format->BitsPerPixel == 16)
+		{
+			src = (UINT16 *)intbuffer;
+			dst1 = (UINT16 *)screen->pixels;
+
+			for (y = 0; y < cur_Rheight; y++)
+			{
+				memcpy(dst1, src, cur_width*screen->format->BitsPerPixel/8);
+				if (vdouble)
+				{
+					if (!(y & 1))
+					{
+						src += cur_width;
+					}
+				}
+				else
+				{
+					src += cur_width;
+				}
+				dst1 += screen->pitch/2;
+			}
+		}
+		else if (screen->format->BitsPerPixel == 32)
+		{
+			srcL = (UINT32 *)intbuffer;
+			dst1L = (UINT32 *)screen->pixels;
+
+			for (y = 0; y < cur_Rheight; y++)
+			{
+				memcpy(dst1L, srcL, cur_width*screen->format->BitsPerPixel/8);
+				if (vdouble)
+				{
+					if (!(y & 1))
+					{
+						srcL += cur_width;
+					}
+				}
+				else
+				{
+					srcL += cur_width;
+				}
+				dst1L += screen->pitch/4;
+			}
+		}
+		else printf("ERROR: Unknown pixel format %d bpp\n", screen->format->BitsPerPixel);
+
+		if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
+#if 0 // AWH
+		SDL_Flip(screen);
+#else
+		switch (BESPauseState) {
+			case PAUSE_CACHE:
+			case PAUSE_CACHE_NO_DRAW:
+				EGLBlitGLCache(screen->pixels, 1);
+				//BESPauseState = PAUSE_NONE;
+				/* Pause stuff */
+				schedule_stop = 1;
+				if (BESPauseState == PAUSE_CACHE)
+					EGLFlip();
+				break;
+			default:
+				EGLBlitGLCache(screen->pixels, 0);
+				EGLFlip();
+				break;
+		}
+#endif // AWH
+	}
+
+}
+
+// called right before Nestopia is about to write pixels
+static bool NST_CALLBACK VideoLock(void* userData, Video::Output& video)
+{
+	if (nsf_mode) return false;
+
+	video.pitch = Linux_LockScreen( video.pixels );
+	return true; // true=lock success, false=lock failed (Nestopia will carry on but skip video)
+}
+
+// called right after Nestopia has finished writing pixels (not called if previous lock failed)
+static void NST_CALLBACK VideoUnlock(void* userData, Video::Output& video)
+{
+	if (nsf_mode) return;
+
+	Linux_UnlockScreen( video.pixels );
+}
+
+// callback to feed a frame of audio to the output driver
+void nst_do_frame(unsigned long dwSamples, signed short *out)
+{
+	int s;
+	short *pbufL = (short *)lbuf;
+	short *outbuf;
+	long dtl, dtr;
+
+	outbuf = out;
+	if (nsf_mode)
+	{
+		Nsf nsf( emulator );
+
+		if (!nsf.IsPlaying())
+		{
+			for (s = 0; s < dwSamples; s++)
+			{
+				*out++ = 0;
+				*out++ = 0;
+			}
+			return;
+		}
+	}
+
+	if (sSettings->GetUseExciter())
+	{
+		int j = 0;
+
+		if (!sSettings->GetStereo())
+		{
+			// exciter can't handle "hot" samples, so
+			// tone them down a bit
+			for (s = 0; s < dwSamples; s++)
+			{
+				exholding[j++] = (*pbufL)/4;
+				exholding[j++] = (*pbufL++)/4;
+			}
+		}
+		else	// stereo
+		{
+			for (s = 0; s < dwSamples; s++)
+			{
+				exholding[j++] = (*pbufL++)/4;
+				exholding[j++] = (*pbufL++)/4;
+			}
+
+			seffect_ex_process((long *)exholding, dwSamples);
+
+			j = 0;
+			for (s = 0; s < dwSamples; s++)
+			{
+				dtr = exholding[j++];
+				dtl = exholding[j++];
+
+				if(dtl>0x7fffL)	dtl=0x7fffL;
+				else if(dtl<-0x7fffL) dtl=-0x7fffL;
+				if(dtr>0x7fffL)	dtr=0x7fffL;
+				else if(dtr<-0x7fffL) dtr=-0x7fffL;
+				
+				*out++ = (dtr & 0xffff);
+				*out++ = (dtl & 0xffff);
+			}
+		}
+
+	}
+	else
+	{
+		if (!sSettings->GetStereo())
+		{
+			for (s = 0; s < dwSamples; s++)
+			{
+				*out++ = *pbufL;
+				*out++ = *pbufL++;
+			}
+		}
+		else	// stereo
+		{
+			for (s = 0; s < dwSamples; s++)
+			{
+				*out++ = *pbufL++;
+				*out++ = *pbufL++;
+			}
+		}
+	}
+
+	if (sSettings->GetUseSurround())
+	{
+		seffect_surround_lite_process(outbuf, dwSamples*4);
+	}
+	updateok = 1;
+}
+
+// do a "partial" shutdown
+static void nst_unload(void)
+{
+	Machine machine(emulator);
+
+	// if nothing's loaded, do nothing
+	if (!loaded)
+	{
+		return;
+	}
+
+	// power down the emulated NES
+	std::cout << "Powering down the emulated machine\n";
+	machine.Power(false);
+
+	// unload the cart
+	machine.Unload();
+#if 0 // AWH
+	// erase any cheats
+	sCheatMgr->Unload();
+#endif // AWH
+}
+
+#if 0 // AWH
+// if we're in full screen, kills video temporarily
+static void kill_video_if_fs(void)
+{
+	if (sSettings->GetFullscreen())
+	{
+		if (SDL_NumJoysticks() > 0)
+		{
+			int i;
+
+			for (i = 0; i < SDL_NumJoysticks(); i++)
+			{
+				// we only? support 10 joysticks
+				if (i < 10)
+				{
+					SDL_JoystickClose(joy[i]);
+				}
+			}
+
+			SDL_JoystickEventState(SDL_ENABLE);	// turn on regular updates
+		}
+
+		SDL_ShowCursor(1);
+		SDL_Quit();
+	}
+}
+#endif // AWH
+
+// returns if we're currently playing a game or NSF
+bool NstIsPlaying() {
+	return playing;
+}
+
+bool NstIsLoaded() {
+	return loaded;
+}
+
+// shuts everything down
+void NstStopPlaying()
+{
+	if (playing)
+	{
+		int i;
+#if 0 // AWH
+		// kill any movie
+		auxio_do_movie_stop();
+#endif // AWH
+		// close video sanely
+		if (!nsf_mode)
+		{
+#if 0 // AWH
+			SDL_FreeSurface(screen);
+#if defined(INCLUDE_OPENGL) /* AWH */
+			opengl_cleanup();
+#endif /* INCLUDE_OPENGL */
+#endif // AWH
+			if (intbuffer)
+			{
+				free(intbuffer);
+				intbuffer = NULL;
+			}
+		}
+
+		// get machine interface...
+		Machine machine(emulator);
+
+		// shut down the sound system too
+		m1sdr_PlayStop();
+		m1sdr_Exit();
+
+		// flush the sound buffer
+		memset(lbuf, 0, sizeof(lbuf));
+
+#if 0 // AWH
+		// kill SDL
+		if (SDL_NumJoysticks() > 0)
+		{
+			for (i = 0; i < SDL_NumJoysticks(); i++)
+			{
+				// we only? support 10 joysticks
+				if (i < 10)
+				{
+					SDL_JoystickClose(joy[i]);
+				}
+			}
+
+			SDL_JoystickEventState(SDL_ENABLE);	// turn on regular updates
+		}
+		SDL_ShowCursor(1);
+		SDL_Quit();
+#endif // AWH
+	}
+
+	playing = 0;
+}
+
+#define CRg(rg) (sizeof(rg) / sizeof(rg[0]))
+std::string svst[2];
+
+// generate the filename for quicksave files
+std::string StrQuickSaveFile(int isvst)
+{
+	const char *home = getenv("HOME");
+	if (!home)
+		{
+		std::cout << "couldn't get home directory\n";
+		return "";
+		}
+	std::ostringstream ossFile;
+	ossFile << home;
+	ossFile << "/.nestopia/qsave";
+
+	if (mkdir(ossFile.str().c_str(), 0777) && errno != EEXIST)
+		{
+		std::cout << "couldn't make qsave directory: " << errno << "\n";
+		return "";
+		}
+      	
+	ossFile << "/" << std::setbase(16) << std::setfill('0') << std::setw(8)
+		<< basename(gamebasename) << std::string("_") << isvst << ".nst";
+
+	return ossFile.str();
+}
+
+void FlipFDSDisk() {
+	Fds fds( emulator );
+
+	if (fds.CanChangeDiskSide()) {
+		fds.ChangeSide();
+	}
+}
+
+// save state to memory slot
+static void QuickSave(int isvst)
+{
+	std::string strFile = StrQuickSaveFile(isvst);
+
+	Machine machine( emulator );
+	std::ofstream os(strFile.c_str());
+	// use "NO_COMPRESSION" to make it easier to hack save states
+	Nes::Result res = machine.SaveState(os, Nes::Api::Machine::USE_COMPRESSION);
+	printf("State Saved: %s\n", strFile.c_str());
+}
+
+
+// restore state from memory slot
+static void QuickLoad(int isvst)
+{
+	std::string strFile = StrQuickSaveFile(isvst);
+	
+	struct stat qloadstat;
+	if (stat(strFile.c_str(), &qloadstat) == -1) {
+		printf("No State to Load\n");
+		return;
+	}
+
+	Machine machine( emulator );
+	std::ifstream is(strFile.c_str());
+	Nes::Result res = machine.LoadState(is);
+	printf("State Loaded: %s\n", strFile.c_str());
+}
+
+
+// start playing
+void NstPlayGame(void)
+{
+#if 0 // AWH
+	if (sSettings->GetFullscreen())
+	{
+		unsetenv("SDL_WINDOWID");
+		NstStopPlaying();
+	}
+	else
+	{
+		putenv(windowid);
+		NstStopPlaying();
+	}
+#else
+	NstStopPlaying();
+#endif // AWH
+	// initialization
+	SetupVideo();
+	SetupSound();
+	SetupInput();
+#if 0 // AWH
+	// apply any cheats into the engine
+	sCheatMgr->Enable();
+#endif // AWH
+	cNstVideo = new Video::Output;
+	cNstSound = new Sound::Output;
+	cNstPads  = new Input::Controllers;
+
+	cNstSound->samples[0] = lbuf;
+	cNstSound->length[0] = sSettings->GetRate()/framerate;
+	//printf("GetRate()/framerate: %d\n", cNstSound->length[0]);
+	cNstSound->samples[1] = NULL;
+	cNstSound->length[1] = 0;
+
+	SDL_WM_SetCaption(caption, caption);
+
+	m1sdr_SetSamplesPerTick(cNstSound->length[0]);
+	//m1sdr_SetSamplesPerTick(800);
+
+	updateok = 0;
+	schedule_stop = 0;
+	playing = 1;
+}
+
+// start playing an NSF file
+void NstPlayNsf(void)
+{
+	Nsf nsf( emulator );
+	
+	nsf.PlaySong();
+}
+
+// stop playing an NSF file
+void NstStopNsf(void)
+{
+	Nsf nsf( emulator );
+	
+	nsf.StopSong();
+
+	// clear the audio buffer
+	memset(lbuf, 0, sizeof(lbuf));
+}
+
+void NstReset() {
+	Machine machine( emulator );
+	Fds fds( emulator );
+	machine.Reset(true);
+
+	// put the disk system back to disk 0 side 0
+	fds.EjectDisk();
+	fds.InsertDisk(0, 0);
+}
+
+// schedule a NEStopia quit
+void NstScheduleQuit(void)
+{
+	nst_quit = 1;
+}
+
+// launch the controller configurator
+void NstLaunchConfig(void)
+{
+	//run_configurator(ctl_defs, sSettings->GetConfigItem(), sSettings->GetUseJoypads());
+	run_configurator(ctl_defs, sSettings->GetConfigItem(), 1); // Force joypad detection
+}
+#if 0 // AWH
+// toggle fullscreen state
+void ToggleFullscreen()
+{
+	if (SDL_NumJoysticks() > 0)
+	{
+		for (int i = 0; i < SDL_NumJoysticks(); i++)
+		{
+			// we only? support 10 joysticks
+			if (i < 10)
+			{
+				SDL_JoystickClose(joy[i]);
+			}
+		}
+
+		SDL_JoystickEventState(SDL_ENABLE);	// turn on regular updates
+	}
+
+	SDL_ShowCursor(1);
+	SDL_FreeSurface(screen);
+#if defined(INCLUDE_OPENGL) /* AWH */
+	opengl_cleanup();
+#endif /* INCLUDE_OPENGL */
+	if (intbuffer)
+	{
+		free(intbuffer);
+		intbuffer = NULL;
+	}
+
+	SDL_Quit();
+	sSettings->SetFullscreen(sSettings->GetFullscreen()^1);
+	SetupVideo();
+
+	lnxdrv_apimode = sSettings->GetSndAPI();
+	if (lnxdrv_apimode == 0) 	// the SDL driver needs a harder restart
+	{
+		m1sdr_Exit();
+		m1sdr_Init(sSettings->GetRate());
+		m1sdr_SetCallback((void *)nst_do_frame);
+		m1sdr_PlayStart();
+	}
+
+
+	SDL_WM_SetCaption(caption, caption);
+	NstPlayGame();
+}
+#endif // AWH
+
+// handle input event
+static void handle_input_event(Input::Controllers *controllers, InputEvtT inevt)
+{
+	#ifdef DEBUG_INPUT
+	printf("metaevent: %d\n", (int)inevt);
+	#endif
+	switch (inevt)
+	{
+	case MSAVE:
+		movie_save = 1;
+		break;
+	case MLOAD:
+		movie_load = 1;
+		break;
+	case MSTOP:
+		movie_stop = 1;
+		break;
+
+	case RESET:
+		NstReset();
+		break;
+
+	case FLIP:
+		FlipFDSDisk();
+		break;
+#if 0 // AWH
+	case FSCREEN:
+		ToggleFullscreen();
+		break;
+#endif // AWH
+	case RBACK:
+		Rewinder(emulator).SetDirection(Rewinder::BACKWARD);
+		break;
+	case RFORE:
+		Rewinder(emulator).SetDirection(Rewinder::FORWARD);
+		break;
+
+	case QSAVE1:
+		QuickSave(0);
+		break;
+	case QLOAD1:
+		QuickLoad(0);
+		break;
+	case QSAVE2:
+		QuickSave(1);
+		break;
+	case QLOAD2:
+		QuickLoad(1);
+		break;
+
+	case SAVE:
+		state_save = 1;
+		break;
+	case LOAD:
+		state_load = 1;
+		break;
+
+	case STOP:
+		schedule_stop = 1;
+		break;
+	case EXIT:
+		schedule_stop = 1;
+		nst_quit = 1;
+		break;
+	case COIN1:
+		controllers->vsSystem.insertCoin |= Input::Controllers::VsSystem::COIN_1;
+		break;
+	case COIN2:
+		controllers->vsSystem.insertCoin |= Input::Controllers::VsSystem::COIN_2;
+		break;
+
+	default:
+		assert(0);
+	}
+}
+
+
+// match input event; if pind is not NULL, continue after it
+// on is set if the key/button is hit, clear if key is up/axis centered
+static const InputDefT *nst_match(const SDL_Event &evt, const InputDefT *pind, bool &on)
+{
+	pind = (pind == NULL) ? ctl_defs : pind + 1;
+	bool match = false;
+
+	for (; pind->player != -1 && !match; ++pind)
+	{
+		switch (evt.type)
+		{
+			case SDL_KEYDOWN:
+			case SDL_KEYUP:
+				#ifdef DEBUG_INPUT
+				if (evt.type == SDL_KEYDOWN)
+				{
+					printf("key is down: sym %x mod %x vs sym %x mod %x\n", evt.key.keysym.sym, evt.key.keysym.mod, pind->evt.key.keysym.sym, pind->evt.key.keysym.mod);
+				}
+				#endif
+
+				match = (pind->evt.type == SDL_KEYDOWN && pind->evt.key.keysym.sym == evt.key.keysym.sym);
+				// do better mod checking
+				if ((pind->evt.key.keysym.mod & evt.key.keysym.mod) != pind->evt.key.keysym.mod)
+				{
+					match = 0;
+				}
+
+				on = (evt.key.state == SDL_PRESSED);
+				break;
+
+			case SDL_JOYBUTTONDOWN:
+			case SDL_JOYBUTTONUP:
+				match = pind->evt.type == SDL_JOYBUTTONDOWN
+					&& pind->evt.jbutton.which == evt.jbutton.which
+					&& pind->evt.jbutton.button == evt.jbutton.button;
+				on = (evt.jbutton.state == SDL_PRESSED);
+				//printf("%d", on);
+				break;
+
+			/* 
+			 * Below is the dirtiest hack I've ever seen/done. But it works.
+			 * The whole input system needs to be rewritten... it doesn't
+			 * look like hat switches were intended to be used originally.
+			 * I tried to do this cleanly, but after 4 days I said "fuck it".
+			 * Try to do it cleanly. I DARE YOU.
+			*/			
+			case SDL_JOYHATMOTION:
+					match = pind->evt.type == SDL_JOYHATMOTION
+						&& pind->evt.jhat.which == evt.jhat.which
+						&& pind->evt.jhat.hat == evt.jhat.hat
+						&& pind->evt.jhat.value & SDL_HAT_UP;
+					on = evt.jhat.value & SDL_HAT_UP;
+					if (match) {
+						return pind;
+					}
+					
+					match = pind->evt.type == SDL_JOYHATMOTION
+						&& pind->evt.jhat.which == evt.jhat.which
+						&& pind->evt.jhat.hat == evt.jhat.hat
+						&& pind->evt.jhat.value & SDL_HAT_DOWN;
+					on = evt.jhat.value & SDL_HAT_DOWN;
+					if (match) {
+						return pind;
+					}
+					
+					match = pind->evt.type == SDL_JOYHATMOTION
+						&& pind->evt.jhat.which == evt.jhat.which
+						&& pind->evt.jhat.hat == evt.jhat.hat
+						&& pind->evt.jhat.value & SDL_HAT_LEFT;
+					on = evt.jhat.value & SDL_HAT_LEFT;
+					if (match) {
+						return pind;
+					}
+										
+					match = pind->evt.type == SDL_JOYHATMOTION
+						&& pind->evt.jhat.which == evt.jhat.which
+						&& pind->evt.jhat.hat == evt.jhat.hat
+						&& pind->evt.jhat.value & SDL_HAT_RIGHT;
+					on = evt.jhat.value & SDL_HAT_RIGHT;
+					if (match) {
+						return pind;
+					}
+				break;
+				// End of dirty hack
+
+			case SDL_JOYAXISMOTION:
+			{
+				const Sint16 nvalue = (abs(evt.jaxis.value) < DEADZONE) ? 0 :
+					(evt.jaxis.value < 0) ? -1 : 1; 	// normalized axis direction
+				match = pind->evt.type == evt.type
+					&& pind->evt.jaxis.which == evt.jaxis.which
+					&& pind->evt.jaxis.axis == evt.jaxis.axis
+					&& (nvalue == 0 || pind->evt.jaxis.value == nvalue);
+				on = nvalue != 0;
+				break;
+			}
+		}
+
+		if (match)
+		{
+			return pind;
+		}
+	}
+
+	return NULL;
+}
+
+// try to dispatch an input event
+static void nst_dispatch(Input::Controllers *controllers, const SDL_Event &evt)
+{
+	bool on;
+	const InputDefT *pind = NULL;
+
+	controllers->vsSystem.insertCoin = 0;
+
+	while ((pind = nst_match(evt, pind, on)) != NULL)
+	{
+		//fprintf(stderr, "AWH: nst_dispatch -> on: %d\n", on);
+		if (on)
+		{
+			if (pind->player == 0)
+            {    
+				handle_input_event(controllers, (InputEvtT)pind->codeout);
+				#ifdef DEBUG_INPUT
+				printf("player %d event1: codeout %x\n", pind->player, pind->codeout);
+				#endif
+			}
+			else
+            {    
+				#ifdef DEBUG_INPUT
+				printf("player %d event2: codeout %x\n", pind->player, pind->codeout);
+				#endif
+				controllers->pad[pind->player - 1].buttons |= pind->codeout;
+			}
+		}
+
+		else
+		{
+			if (pind->player != 0)
+            {    
+				#ifdef DEBUG_INPUT
+				printf("player %d event3: codeout %x\n\n", pind->player, pind->codeout);
+				#endif
+				controllers->pad[pind->player - 1].buttons &= ~pind->codeout;
+			}
+		}
+	}
+}
+
+// logging callback called by the core
+static void NST_CALLBACK DoLog(void *userData, const char *string, unsigned long int length)
+{
+	fprintf(stderr, "%s", string);
+}
+
+// for various file operations, usually called during image file load, power on/off and reset
+static void NST_CALLBACK DoFileIO(void *userData, User::File& file)
+{
+	unsigned char *compbuffer;
+	int compsize, compoffset;
+	char mbstr[512];
+
+	switch (file.GetAction())
+	{
+		case User::File::LOAD_ROM:
+			wcstombs(mbstr, file.GetName(), 511);
+
+			if (auxio_load_archive(lastarchname, &compbuffer, &compsize, &compoffset, (const char *)mbstr))
+			{
+				file.SetContent((const void*)&compbuffer[compoffset], (unsigned long int)compsize);
+
+				free(compbuffer);
+			}				
+			break;
+
+		case User::File::LOAD_SAMPLE:
+		case User::File::LOAD_SAMPLE_MOERO_PRO_YAKYUU:
+		case User::File::LOAD_SAMPLE_MOERO_PRO_YAKYUU_88:
+		case User::File::LOAD_SAMPLE_MOERO_PRO_TENNIS:
+		case User::File::LOAD_SAMPLE_TERAO_NO_DOSUKOI_OOZUMOU:
+		case User::File::LOAD_SAMPLE_AEROBICS_STUDIO:
+			wcstombs(mbstr, file.GetName(), 511);
+
+			if (auxio_load_archive(lastarchname, &compbuffer, &compsize, &compoffset, (const char *)mbstr))
+			{
+				int chan, bits, rate;
+
+				if (!strncmp((const char *)compbuffer, "RIFF", 4))
+				{
+					chan = compbuffer[20] | compbuffer[21]<<8;
+					rate = compbuffer[24] | compbuffer[25]<<8 | compbuffer[26]<<16 | compbuffer[27]<<24;
+					bits = compbuffer[34] | compbuffer[35]<<8; 
+
+//					std::cout << "WAV has " << chan << " chan, " << bits << " bits per sample, rate = " << rate << "\n";
+
+					file.SetSampleContent((const void*)&compbuffer[compoffset], (unsigned long int)compsize, (chan == 2) ? true : false, bits, rate);
+				}
+
+				free(compbuffer);
+			}				
+			break;
+
+		case User::File::LOAD_BATTERY: // load in battery data from a file
+		case User::File::LOAD_EEPROM: // used by some Bandai games, can be treated the same as battery files
+		case User::File::LOAD_TAPE: // for loading Famicom cassette tapes
+		case User::File::LOAD_TURBOFILE: // for loading turbofile data
+		{
+			int size;
+			FILE *f;
+			f = fopen(/* AWH savename*/ sramname, "rb");
+
+			if (!f)
+			{
+				return;
+			}
+			fseek(f, 0, SEEK_END);
+			size = ftell(f);
+			fclose(f);
+
+			std::ifstream batteryFile( /* AWH savename*/sramname, std::ifstream::in|std::ifstream::binary );
+
+			if (batteryFile.is_open())
+			{
+				file.SetContent( batteryFile );
+			}
+			break;
+		}
+
+		case User::File::SAVE_BATTERY: // save battery data to a file
+		case User::File::SAVE_EEPROM: // can be treated the same as battery files
+		case User::File::SAVE_TAPE: // for saving Famicom cassette tapes
+		case User::File::SAVE_TURBOFILE: // for saving turbofile data
+		{
+			std::ofstream batteryFile( /* AWH savename*/sramname, std::ifstream::out|std::ifstream::binary );
+			const void* savedata;
+			unsigned long savedatasize;
+			int fd;
+			char tempDir[1024];
+
+			file.GetContent( savedata, savedatasize );
+
+			if (batteryFile.is_open())
+			{
+				batteryFile.write( (const char*) /*AWH savedata*/sramname, savedatasize );
+				/* AWH - fsync the SRAM */
+				fd = open(sramname, O_RDWR);
+				fsync(fd);
+				close(fd);
+				sprintf(tempDir, "%s/%s/nes", 
+					BES_FILE_ROOT_DIR, BES_SRAM_DIR);
+				fd = open(tempDir, O_RDWR);
+				fsync(fd);
+				close(fd);	
+			}
+			break;
+		}
+
+		case User::File::LOAD_FDS: // for loading modified Famicom Disk System files
+		{
+			char fdsname[512];
+
+			sprintf(fdsname, "%s.ups", rootname);
+			
+			std::ifstream batteryFile( fdsname, std::ifstream::in|std::ifstream::binary );
+
+			// no ups, look for ips
+			if (!batteryFile.is_open())
+			{
+				sprintf(fdsname, "%s.ips", rootname);
+
+				std::ifstream batteryFile( fdsname, std::ifstream::in|std::ifstream::binary );
+
+				if (!batteryFile.is_open())
+				{
+					return;
+				}
+
+				file.SetPatchContent(batteryFile);
+				return;
+			}
+
+			file.SetPatchContent(batteryFile);
+			break;
+		}
+
+		case User::File::SAVE_FDS: // for saving modified Famicom Disk System files
+		{
+			char fdsname[512];
+
+			sprintf(fdsname, "%s.ups", rootname);
+
+			std::ofstream fdsFile( fdsname, std::ifstream::out|std::ifstream::binary );
+
+			if (fdsFile.is_open())
+				file.GetPatchContent( User::File::PATCH_UPS, fdsFile );
+
+			break;
+		}
+	}
+}
+static void cleanup_after_io(void)
+{
+#if 0 // AWH
+	gtk_main_iteration_do(FALSE);
+	gtk_main_iteration_do(FALSE);
+	gtk_main_iteration_do(FALSE);
+	if (sSettings->GetFullscreen())
+	{
+		SetupVideo();
+	}
+#endif // AWH
+}
+
+#if 0 // AWH
+int main(int argc, char *argv[])
+#else
+int nes_main(const char *romname)
+#endif // AWH
+{
+	static SDL_Event event;
+	int i;
+	void* userData = (void*) 0xDEADC0DE;
+	char dirname[1024], savedirname[1024], *home;
+
+	// read the key/controller mapping
+	ctl_defs = parse_input_file();
+
+	if (!ctl_defs)
+	{
+		std::cout << "nstcontrols not found, creating a new one.\n";
+		
+		// make sure the output directory exists
+#if 0
+		home = getenv("HOME");
+		sprintf(dirname, "%s/.nestopia/", home);
+		sprintf(savedirname, "%ssave/", dirname);
+		mkdir(dirname, 0700);
+		mkdir(savedirname, 0700);
+		create_input_file();
+#else
+		sprintf(savedirname, "%s/%s/nes/", BES_FILE_ROOT_DIR, 
+			BES_SAVE_DIR);
+#endif
+		ctl_defs = parse_input_file();
+		if (!ctl_defs)
+		{
+			std::cout << "Reading nstcontrols file: FAIL\n";
+			return -1;
+		}
+	} 
+
+	playing = 0;
+	intbuffer = NULL;
+
+	auxio_init();
+
+	sSettings = new Settings;
+#if 0 // AWH
+	sCheatMgr = new CheatMgr;
+	gtk_init(&argc, &argv);
+#endif // AWH	
+	get_screen_res();
+#if 0 // AWH
+	UIHelp_Init(argc, argv, sSettings, sCheatMgr, cur_Rwidth, cur_Rheight);
+#endif // AWH	
+	// setup video lock/unlock callbacks
+	Video::Output::lockCallback.Set( VideoLock, userData );
+	Video::Output::unlockCallback.Set( VideoUnlock, userData );
+
+	// misc callbacks (for others, see NstApuUser.hpp)
+	User::fileIoCallback.Set( DoFileIO, userData );
+	User::logCallback.Set( DoLog, userData );
+
+	// try to load the FDS BIOS
+	auxio_set_fds_bios();
+
+	// and the NST database
+	auxio_load_db();
+
+	// attempt to load and autostart a file specified on the commandline
+#if 0 // AWH
+	if (argc > 1)
+	{
+		NstLoadGame(argv[1]);
+#else
+	{
+		char buffer[1024];
+		BESResetJoysticks();
+		sprintf(buffer, "%s/%s/nes/%s", BES_FILE_ROOT_DIR, BES_ROM_DIR, romname);
+		fprintf(stderr, "NES: '%s'\n", buffer);
+		NstLoadGame(buffer);
+#endif // AWH
+		if (loaded)
+		{
+#if 1 // AWH
+			if (nsf_mode)
+				NstPlayNsf();
+			else
+				NstPlayGame();
+#else
+			if (nsf_mode)
+			{
+				on_nsfplay_clicked(NULL, NULL);
+			}
+			else
+			{
+				on_playbutton_clicked(NULL, NULL);
+			}
+#endif // AWH
+		}
+#if 1 // AWH
+		else return(0);
+#endif // AWH
+	}
+
+	nst_quit = 0;
+	while (!nst_quit)
+	{
+#if 0 // AWH
+		while (gtk_events_pending())
+		{
+			gtk_main_iteration();
+		}
+#endif // AWH		
+		if (playing)
+		{
+#if 0 // AWH
+				gtk_main_iteration_do(FALSE);
+#endif // AWH
+			 	while (SDL_PollEvent(&event))
+				{
+					switch (event.type)
+					{
+						case SDL_QUIT:
+							schedule_stop = 1;
+							break;
+
+						case SDL_KEYDOWN:
+						case SDL_KEYUP:
+							// ignore num lock, caps lock, and "mode" (whatever that is)
+							event.key.keysym.mod = (SDLMod)((int)event.key.keysym.mod & (~(KMOD_NUM | KMOD_CAPS | KMOD_MODE)));
+							/* AWH - Shortcut for pause dialog */
+							if (event.key.keysym.sym == SDLK_n)
+								BESPauseState = PAUSE_CACHE;
+							else							
+								nst_dispatch(cNstPads, event);
+							break;
+						case SDL_JOYHATMOTION:
+						case SDL_JOYAXISMOTION:
+						case SDL_JOYBUTTONDOWN:
+						case SDL_JOYBUTTONUP:
+#if 1 // AWH
+							handleJoystickEvent(&event);
+#else
+							nst_dispatch(cNstPads, event);
+#endif // AWH
+							break;
+					}	
+				}
+				//}
+				BESCheckJoysticks(); // AWH 
+				if (NES_SUCCEEDED(Rewinder(emulator).Enable(true)))
+				{
+					Rewinder(emulator).EnableSound(true);
+				}
+
+			m1sdr_TimeCheck();
+			if (updateok)
+			{
+				// AWH emulator.Execute( NULL, cNstSound, cNstPads);
+				emulator.Execute(cNstVideo, cNstSound, cNstPads);
+				updateok = 0;
+			}
+
+			if (state_save)
+			{
+				// AWH kill_video_if_fs();
+				auxio_do_state_save();
+				state_save = 0;
+				cleanup_after_io();
+			}
+
+			if (state_load)
+			{
+				// AWH kill_video_if_fs();
+				auxio_do_state_load();
+				state_load = 0;
+				cleanup_after_io();
+			}
+#if 0 // AWH
+			if (movie_load)
+			{
+				kill_video_if_fs();
+				auxio_do_movie_load();
+				movie_load = 0;
+				cleanup_after_io();
+			}
+
+			if (movie_save)
+			{
+				kill_video_if_fs();
+				auxio_do_movie_save();
+				movie_load = 0;
+				cleanup_after_io();
+			}
+
+			if (movie_stop)
+			{
+				movie_stop = 0;
+				auxio_do_movie_stop();
+			}
+#endif // AWH
+			if (schedule_stop)
+			{
+				NstStopPlaying();
+#if 1 // AWH
+				switch (BESPauseState) {
+					case PAUSE_CACHE:
+					case PAUSE_CACHE_NO_DRAW:
+						BESPauseState = PAUSE_NONE;
+						if(doPauseGui(romname, PLATFORM_NES))
+							nst_quit = 1;
+						else
+							NstPlayGame();
+						break;
+					default:
+						nst_quit = 1;
+						break;
+				} /* End switch */
+#endif // AWH
+			}
+		}
+#if 0 // AWH
+		else
+		{
+			gtk_main_iteration_do(TRUE);
+		}
+#endif // AWH
+	}
+
+	nst_unload();
+
+	auxio_shutdown();
+
+	delete sSettings;
+#if 0 // AWH
+	delete sCheatMgr;
+	write_output_file(ctl_defs);
+#endif // AWH
+	free(ctl_defs);
+
+	return 0;
+}
+
+void get_screen_res() {
+#if 0 // AWH
+	int scalefactor = sSettings->GetScaleAmt() + 1;
+	
+	switch (sSettings->GetScale())
+	{
+		case 0:	// None (no scaling unless OpenGL)
+			if (sSettings->GetRenderType() == 0)
+			{
+				if (scalefactor > 1)
+				{
+					std::cout << "Warning: raw scale factors > 1 not allowed with pure software, use OpenGL\n";
+				}
+				cur_width = cur_Rwidth = Video::Output::WIDTH;
+				cur_height = cur_Rheight = Video::Output::HEIGHT;
+			}
+			else
+			{
+				cur_width = Video::Output::WIDTH;
+				cur_height = Video::Output::HEIGHT;
+				/* AWH sSettings->GetTvAspect() == TRUE ?*/ cur_Rwidth = TV_WIDTH * scalefactor /* AWH : cur_Rwidth = cur_width * scalefactor*/;
+				cur_Rheight = cur_height * scalefactor;
+			}
+
+			break;
+		case 1: // NTSC
+			if (sSettings->GetRenderType() == 0)
+			{
+				if (scalefactor != 2)
+				{
+					std::cout << "Warning: NTSC only runs at 2x scale in Software mode.\n";
+				}
+
+				scalefactor = 2;
+			}
+
+			cur_width = Video::Output::NTSC_WIDTH;
+			cur_Rwidth = (cur_width / 2) * scalefactor;
+			cur_height = Video::Output::HEIGHT;
+			cur_Rheight = cur_height * scalefactor;
+			break;
+
+		case 2: // scale x
+			if (scalefactor == 4) 
+			{
+				std::cout << "Warning: Scale x only allows scale factors of 3 or less\n";
+				scalefactor = 3;	// there is no scale4x
+			}
+
+			cur_width = Video::Output::WIDTH * scalefactor;
+			sSettings->GetTvAspect() == TRUE ? cur_Rwidth = TV_WIDTH * scalefactor : cur_Rwidth = cur_width;
+			cur_height = cur_Rheight = Video::Output::HEIGHT * scalefactor;
+			break;
+
+		case 3: // scale HQx
+			cur_width = Video::Output::WIDTH * scalefactor;
+			sSettings->GetTvAspect() == TRUE ? cur_Rwidth = TV_WIDTH * scalefactor : cur_Rwidth = cur_width;
+			cur_height = cur_Rheight = Video::Output::HEIGHT * scalefactor;
+			break;
+			
+		case 4: // 2xSaI
+			cur_width = Video::Output::WIDTH * 2;
+			sSettings->GetTvAspect() == TRUE ? cur_Rwidth = TV_WIDTH * scalefactor : cur_Rwidth = Video::Output::WIDTH * scalefactor;
+			cur_height = Video::Output::HEIGHT * 2;
+			cur_Rheight = Video::Output::HEIGHT * scalefactor;
+			break;
+	}
+
+	//This is somewhat dirty, but it makes it easier to pass the data to other functions
+	xres = cur_Rwidth;
+	yres = cur_Rheight;
+#else
+	xres = cur_Rwidth = cur_width = Video::Output::WIDTH;
+	yres = cur_Rheight = cur_height = Video::Output::HEIGHT;
+#endif /* AWH */
+}
+
+void SetupVideo()
+{
+	// renderstate structure
+	Video::RenderState renderState;
+	Machine machine( emulator );
+	Cartridge::Database database( emulator );
+	Video::RenderState::Filter filter;
+	int scalefactor = 1; // AWH sSettings->GetScaleAmt() + 1;
+	int i;
+
+	// init SDL
+	if (SDL_Init(/* AWH SDL_INIT_VIDEO|*/SDL_INIT_JOYSTICK))
+	{
+		std::cout << "Unable to init SDL\n";
+		return;
+	}
+
+	// figure out the region
+	framerate = 60;
+#if 0 // AWH
+	if (sSettings->GetVideoMode() == 2)		// force PAL
+	{
+		machine.SetMode(Machine::PAL);
+		framerate = 50;
+	}
+	else if (sSettings->GetVideoMode() == 1) 	// force NTSC
+	{
+		machine.SetMode(Machine::NTSC);
+	}
+	else	// auto
+#endif // AWH
+	{
+		if (database.IsLoaded())
+		{
+			if (dbentry.GetSystem() == Cartridge::Profile::System::NES_PAL)
+			{
+				machine.SetMode(Machine::PAL);
+				framerate = 50;
+			}
+			else
+			{
+				machine.SetMode(Machine::NTSC);
+			}
+		}
+		else
+		{
+			machine.SetMode(machine.GetDesiredMode());
+		}
+	}
+
+	// we don't create a window in NSF mode
+	if (nsf_mode) 
+	{
+		return;
+	}
+
+	if (SDL_NumJoysticks() > 0)
+	{
+		for (i = 0; i < SDL_NumJoysticks(); i++)
+		{
+			// we only? support 10 joysticks
+			if (i < 10)
+			{
+				joy[i] = SDL_JoystickOpen(i);
+			}
+		}
+
+		SDL_JoystickEventState(SDL_ENABLE);	// turn on regular updates
+	}
+	
+	get_screen_res();
+
+	// compute the major video parameters from the scaler type and scale factor
+#if 1 /* AWH */
+	filter = Video::RenderState::FILTER_NONE;
+	/* AWH - Point to the screen specified by the front-end */ 
+	screen = screen256;
+	EGLSrcSize(Video::Output::WIDTH, Video::Output::HEIGHT);
+#else
+	switch (sSettings->GetScale())
+	{
+		case 0:	// None (no scaling unless OpenGL)
+			filter = Video::RenderState::FILTER_NONE;
+			break;
+
+		case 1: // NTSC
+			filter = Video::RenderState::FILTER_NTSC;
+			break;
+
+		case 2: // scale x
+			switch (scalefactor)
+			{
+				case 2:
+					filter = Video::RenderState::FILTER_SCALE2X;
+					break;
+
+				case 3:
+					filter = Video::RenderState::FILTER_SCALE3X;
+					break;
+
+				default:
+					filter = Video::RenderState::FILTER_NONE;
+					break;
+			}
+			break;
+
+		case 3: // scale HQx
+			switch (scalefactor)
+			{
+				case 2:
+					filter = Video::RenderState::FILTER_HQ2X;
+					break;
+
+				case 3:
+					filter = Video::RenderState::FILTER_HQ3X;
+					break;
+
+				case 4:
+					filter = Video::RenderState::FILTER_HQ4X;
+					break;
+
+				default:
+					filter = Video::RenderState::FILTER_NONE;
+					break;
+			}
+			break;
+		
+		case 4: // 2xSaI
+			filter = Video::RenderState::FILTER_2XSAI;
+			break;
+	}
+	int eFlags = SDL_HWSURFACE;
+	linear_filter = (sSettings->GetRenderType() == 2);
+#if defined(INCLUDE_OPENGL) /* AWH */
+	using_opengl = (sSettings->GetRenderType() > 0);
+	if (using_opengl)
+	{
+		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
+		eFlags = SDL_OPENGL;
+	}
+#endif /* INCLUDE_OPENGL */
+	if (sSettings->GetFullscreen())
+	{
+		GdkScreen *gdkscreen = gdk_screen_get_default();
+		
+		int fullscreen = sSettings->GetFullscreen();
+		int fsnativeres = sSettings->GetFsNativeRes();
+
+		if (fullscreen && fsnativeres && using_opengl) {	// Force native resolution in fullscreen mode
+			cur_Rwidth = gdk_screen_get_width(gdkscreen);
+			cur_Rheight = gdk_screen_get_height(gdkscreen);
+		}
+		screen = SDL_SetVideoMode(cur_Rwidth, cur_Rheight, 16, SDL_ANYFORMAT | SDL_DOUBLEBUF | SDL_FULLSCREEN | eFlags);
+	}
+	else
+	{
+		screen = SDL_SetVideoMode(/* AWH cur_Rwidth, cur_Rheight,*/Video::Output::WIDTH, Video::Output::HEIGHT, 16, /*AWH SDL_ANYFORMAT | SDL_DOUBLEBUF | eFlags */ SDL_FULLSCREEN);
+	}
+
+	if (!screen)
+	{
+		std::cout << "SDL couldn't set video mode\n";
+		exit(-1);
+	}
+#endif // AWH
+	renderState.filter = filter;
+	renderState.width = cur_width;
+	renderState.height = cur_height;
+#if defined(INCLUDE_OPENGL) /* AWH */
+	// example configuration
+	if (using_opengl)
+	{
+		opengl_init_structures();
+
+		renderState.bits.count = 32;
+		renderState.bits.mask.r = 0x00ff0000;
+		renderState.bits.mask.g = 0x0000ff00;
+		renderState.bits.mask.b = 0x000000ff;
+	}
+	else
+#endif /* INCLUDE_OPENGL */
+	{
+		renderState.bits.count = screen->format->BitsPerPixel;
+		renderState.bits.mask.r = screen->format->Rmask;
+		renderState.bits.mask.g = screen->format->Gmask;
+		renderState.bits.mask.b = screen->format->Bmask;
+	}
+
+	// allocate the intermediate render buffer
+	intbuffer = malloc(renderState.bits.count * renderState.width * renderState.height);
+
+	// acquire the video interface
+	Video video( emulator );
+
+	// set the sprite limit
+	video.EnableUnlimSprites(sSettings->GetSprlimit() ? false : true);
+
+	// set up the NTSC type
+	switch (sSettings->GetNtscMode())
+	{
+		case 0:	// composite
+			video.SetSharpness(Video::DEFAULT_SHARPNESS_COMP);
+			video.SetColorResolution(Video::DEFAULT_COLOR_RESOLUTION_COMP);
+			video.SetColorBleed(Video::DEFAULT_COLOR_BLEED_COMP);
+			video.SetColorArtifacts(Video::DEFAULT_COLOR_ARTIFACTS_COMP);
+			video.SetColorFringing(Video::DEFAULT_COLOR_FRINGING_COMP);
+			break;
+
+		case 1:	// S-Video
+			video.SetSharpness(Video::DEFAULT_SHARPNESS_SVIDEO);
+			video.SetColorResolution(Video::DEFAULT_COLOR_RESOLUTION_SVIDEO);
+			video.SetColorBleed(Video::DEFAULT_COLOR_BLEED_SVIDEO);
+			video.SetColorArtifacts(Video::DEFAULT_COLOR_ARTIFACTS_SVIDEO);
+			video.SetColorFringing(Video::DEFAULT_COLOR_FRINGING_SVIDEO);
+			break;
+
+		case 2:	// RGB
+			video.SetSharpness(Video::DEFAULT_SHARPNESS_RGB);
+			video.SetColorResolution(Video::DEFAULT_COLOR_RESOLUTION_RGB);
+			video.SetColorBleed(Video::DEFAULT_COLOR_BLEED_RGB);
+			video.SetColorArtifacts(Video::DEFAULT_COLOR_ARTIFACTS_RGB);
+			video.SetColorFringing(Video::DEFAULT_COLOR_FRINGING_RGB);
+			break;
+	}
+			     
+	// set the render state
+	if (NES_FAILED(video.SetRenderState( renderState )))
+	{
+		std::cout << "Nestopia core rejected render state\n";
+		::exit(0);
+	}
+#if 0 // AWH
+	if (sSettings->GetFullscreen())
+	{
+		SDL_ShowCursor(0);
+	}
+#endif // AWH
+}
+
+// initialize sound going into the game
+void SetupSound()
+{
+	// acquire interface
+	Sound sound( emulator );
+
+	lnxdrv_apimode = sSettings->GetSndAPI();
+
+	m1sdr_Init(sSettings->GetRate());
+	m1sdr_SetCallback((void *)nst_do_frame);
+	m1sdr_PlayStart();
+
+	// init DSP module
+	seffect_init(sSettings);
+
+	// example configuration (these are the default values)
+	sound.SetSampleBits( 16 );
+	sound.SetSampleRate(sSettings->GetRate());
+	sound.SetVolume(Sound::ALL_CHANNELS, sSettings->GetVolume());
+	if (sSettings->GetStereo())
+	{
+		sound.SetSpeaker( Sound::SPEAKER_STEREO );
+	}
+	else
+	{
+		sound.SetSpeaker( Sound::SPEAKER_MONO );
+	}
+}
+
+// initialize input going into the game
+void SetupInput()
+{
+	// connect a standard NES pad onto the first port
+	Input(emulator).ConnectController( 0, Input::PAD1 );
+
+	// connect a standard NES pad onto the second port too
+	Input(emulator).ConnectController( 1, Input::PAD2 );
+}
+
+void configure_savename( const char* filename )
+{
+	int i = 0;
+	char savedir[1024], *homedir;
+
+#if 0 // AWH
+	homedir = getenv("HOME");
+	sprintf(savedir, "%s/.nestopia/save/", homedir);
+#else
+	sprintf(savedir, "%s/%s/nes/", BES_FILE_ROOT_DIR,
+		BES_SAVE_DIR);
+#endif // AWH
+	strcpy(savename, filename);
+
+	// strip the . and extention off the filename for saving
+	for (i = strlen(savename)-1; i > 0; i--)
+	{
+		if (savename[i] == '.')
+		{
+			savename[i] = '\0';
+			break;
+		}
+	}
+
+	strcpy(capname, savename);
+	strcpy(gamebasename, savename);
+
+	// strip the path off the savename to get the filename only
+	for (i = strlen(capname)-1; i > 0; i--)
+	{
+		if (capname[i] == '/')
+		{
+			strcpy(capname, &capname[i+1]);
+			break;
+		}
+	}
+	
+	//Save to the home directory instead of the location of the rom
+	strcat(savedir, capname);
+	strcpy(savename, savedir);
+#if 0 // AWH	
+	// also generate the window caption
+	sprintf(caption, "Nestopia");
+#endif // AWH
+	strcpy(rootname, savename);
+	strcat(savename, ".sav");
+
+#if 1 // AWH - Now do the same for SRAM
+	sprintf(sramname, "%s/%s/nes/%s.sav", BES_FILE_ROOT_DIR,
+		BES_SRAM_DIR, capname);
+#endif // AWH
+
+}
+
+// try and find a patch for the game being loaded
+static int find_patch(char *patchname)
+{
+	FILE *f;
+
+	// did the user turn off auto softpatching?
+	if (sSettings->GetSoftPatch() == 0)
+	{
+		return 0;
+	}
+
+	snprintf(patchname, 511, "%s.ips", gamebasename);
+	if ((f = fopen(patchname, "rb")) != NULL)
+	{
+		fclose(f);
+		return 1;
+	}
+	else
+	{
+		snprintf(patchname, 511, "%s.ups", gamebasename);
+		if ((f = fopen(patchname, "rb")) != NULL)
+		{
+			fclose(f);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+// load a game or NES music file
+void NstLoadGame(const char* filename)
+{
+	// acquire interface to machine
+	Cartridge::Database database( emulator );
+	Machine machine( emulator );
+	Nsf nsf( emulator );
+	Nes::Result result;
+	unsigned char *compbuffer;
+	int compsize, wascomp, compoffset;
+	char gamename[512], patchname[512];
+
+	if (nsf_mode)
+	{
+		Nsf nsf( emulator );
+
+		nsf.StopSong();
+
+		// clear the audio buffer
+		memset(lbuf, 0, sizeof(lbuf));
+
+		playing = 0;
+	}
+
+	// unload if necessary
+	nst_unload();
+
+	// (re)configure savename
+	configure_savename(filename);
+
+	// check if it's an archive
+	wascomp = 0;
+	if (auxio_load_archive(filename, &compbuffer, &compsize, &compoffset, NULL, gamename))
+	{
+		std::istrstream file((char *)compbuffer+compoffset, compsize);
+		wascomp = 1;
+
+		strncpy(lastarchname, filename, 511);
+	
+		configure_savename(gamename);
+
+		if (database.IsLoaded())
+		{
+			dbentry = database.FindEntry((void *)&compbuffer[compoffset], compsize, get_favored_system());
+		}
+
+		if (find_patch(patchname))
+		{
+			std::ifstream pfile(patchname, std::ios::in|std::ios::binary);
+
+			Machine::Patch patch(pfile, false);
+
+			// load game and softpatch
+			result = machine.Load( file, get_favored_system(), patch );
+		}
+		else
+		{
+			// load game
+			result = machine.Load( file, get_favored_system() );
+		}
+	}
+	else
+	{
+		FILE *f;
+		int length;
+		unsigned char *buffer;
+
+		// this is a little ugly
+		if (database.IsLoaded())
+		{
+			f = fopen(filename, "rb");
+			if (!f)
+			{
+				loaded = 0;
+				return;
+			}
+
+			fseek(f, 0, SEEK_END);
+			length = ftell(f);
+			fseek(f, 0, SEEK_SET);
+
+			buffer = (unsigned char *)malloc(length);
+			fread(buffer, length, 1, f);
+			fclose(f);
+
+			dbentry = database.FindEntry(buffer, length, get_favored_system());
+
+			free(buffer);
+		}
+	
+		configure_savename(filename);
+
+		// C++ file stream
+		std::ifstream file(filename, std::ios::in|std::ios::binary);
+
+		if (find_patch(patchname))
+		{
+			std::ifstream pfile(patchname, std::ios::in|std::ios::binary);
+
+			Machine::Patch patch(pfile, false);
+
+			// load game and softpatch
+			result = machine.Load( file, get_favored_system(), patch );
+		}
+		else
+		{
+			// load game
+			result = machine.Load( file, get_favored_system() );
+		}
+	}
+
+	// failed?
+	if (NES_FAILED(result))
+	{
+		switch (result)
+		{
+			case Nes::RESULT_ERR_INVALID_FILE:
+				std::cout << "Invalid file\n";
+				break;
+
+			case Nes::RESULT_ERR_OUT_OF_MEMORY:
+				std::cout << "Out of memory\n";
+				break;
+
+			case Nes::RESULT_ERR_CORRUPT_FILE:
+				std::cout << "Corrupt or missing file\n";
+				break;
+
+			case Nes::RESULT_ERR_UNSUPPORTED_MAPPER:
+				std::cout << "Unsupported mapper\n";
+				break;
+
+			case Nes::RESULT_ERR_MISSING_BIOS:
+				std::cout << "Can't find disksys.rom for FDS game\n";
+				break;
+
+			default:
+				std::cout << "Unknown error #" << result << "\n";
+				break;
+		}
+
+		return;
+	}
+
+	// free the buffer if necessary
+	if (wascomp)
+	{
+		free(compbuffer);
+	}
+
+	// is this an NSF?
+	nsf_mode = (machine.Is(Machine::SOUND)) ? 1 : 0;
+
+	if (nsf_mode)
+	{
+#if 0 // AWH
+		// update the UI
+		UIHelp_NSFLoaded();
+#endif // AWH
+		// initialization
+		SetupVideo();
+		SetupSound();
+		SetupInput();
+
+		cNstVideo = new Video::Output;
+		cNstSound = new Sound::Output;
+		cNstPads  = new Input::Controllers;
+
+		cNstSound->samples[0] = lbuf;
+		cNstSound->length[0] = sSettings->GetRate()/framerate;
+		cNstSound->samples[1] = NULL;
+		cNstSound->length[1] = 0;
+
+		m1sdr_SetSamplesPerTick(cNstSound->length[0]);
+
+		updateok = 0;
+		playing = 1;
+		schedule_stop = 0;
+	}
+	else
+	{
+		if (machine.Is(Machine::DISK))
+		{
+			Fds fds( emulator );
+
+			fds.InsertDisk(0, 0);
+		}
+	}
+
+	// note that something is loaded
+	loaded = 1;
+
+	// power on
+	machine.Power( true ); // false = power off
+}
+

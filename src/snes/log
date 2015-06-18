@@ -1,0 +1,768 @@
+diff sdl/beagleboard.h /media/notroot/rootfs/home/ubuntu/build/bes_src/beagleboard.h
+4a5
+> //#define PC_PLATFORM 1
+12,13c13,14
+< #if !defined(BEAGLEBONE_BLACK) && !defined(BEAGLEBOARD_XM)
+< #error You must define one board to build for in beagleboard.h!
+---
+> #if !defined(BEAGLEBONE_BLACK) && !defined(BEAGLEBOARD_XM) && !defined(PC_PLATFORM)
+> #error You must define one platform to build for in beagleboard.h!
+18c19
+< #define CAPE_LCD3 1
+---
+> //#define CAPE_LCD3 1
+
+
+
+
+
+diff sdl/gui.cpp /media/notroot/rootfs/home/ubuntu/build/bes_src/gui.cpp
+1,37d0
+< /*****************************************************************************
+<   BeagleSNES - Super Nintendo Entertainment System (TM) emulator for the
+<   BeagleBoard-xM platform.
+< 
+<   See CREDITS file to find the copyright owners of this file.
+< 
+<   GUI front-end code (c) Copyright 2013 Andrew Henderson (hendersa@icculus.org)
+< 
+<   BeagleSNES homepage: http://www.beaglesnes.org/
+<   
+<   BeagleSNES is derived from the Snes9x open source emulator:  
+<   Snes9x homepage: http://www.snes9x.com/
+< 
+<   Permission to use, copy, modify and/or distribute BeagleSNES in both binary
+<   and source form, for non-commercial purposes, is hereby granted without
+<   fee, providing that this license information and copyright notice appear
+<   with all copies and any derived work.
+< 
+<   This software is provided 'as-is', without any express or implied
+<   warranty. In no event shall the authors be held liable for any damages
+<   arising from the use of this software or it's derivatives.
+< 
+<   BeagleSNES is freeware for PERSONAL USE only. Commercial users should
+<   seek permission of the copyright holders first. Commercial use includes,
+<   but is not limited to, charging money for BeagleSNES or software derived 
+<   from BeagleSNES, including BeagleSNES or derivatives in commercial game 
+<   bundles, and/or using BeagleSNES as a promotion for your commercial 
+<   product.
+< 
+<   The copyright holders request that bug fixes and improvements to the code
+<   should be forwarded to them so everyone can benefit from the modifications
+<   in future versions.
+< 
+<   Super NES and Super Nintendo Entertainment System are trademarks of
+<   Nintendo Co., Limited and its subsidiary companies.
+<  *****************************************************************************/
+< 
+53,55d15
+< #include "port.h"
+< #include "controls.h" // AWH - SNES9X button mapping
+< 
+79c39,61
+< static const char *joystickPath[NUM_JOYSTICKS*2] = {
+---
+> 
+> static SDL_Surface *logo;
+> static SDL_Surface *gradient;
+> SDL_Surface *screen;
+> #if defined(CAPE_LCD3)
+> static SDL_Rect gradientRect = {0, 24, 0, 0};
+> static SDL_Rect logoRect = {15, 2, 0, 0};
+> #else
+> static SDL_Rect gradientRect = {0, GRADIENT_Y_POS, 0, 0};
+> static SDL_Rect logoRect = {55, 30, 0, 0};
+> #endif /* CAPE_LCD3 */
+> 
+> #if defined(BEAGLEBONE_BLACK)
+> #if defined(CAPE_LCD3)
+> static SDL_Rect backgroundRect = {0, 55, 320, 240-55};
+> //audioAvailable = 0;
+> #else
+> static SDL_Rect backgroundRect = {0, 80, 720, 480-80};
+> #endif /* CAPE_LCD3 */
+> #else
+> static SDL_Rect backgroundRect = {0, 80, 350, 480-80};
+> #endif
+> 
+80a63
+> static const char *joystickPath[NUM_JOYSTICKS*2] = {
+87a71
+> static const char *joystickPath[NUM_JOYSTICKS] = {
+89a74,75
+> #else
+> static const char *joystickPath[NUM_JOYSTICKS] = {"", ""};
+92,93c78,79
+< int beagleSNESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
+< int beagleSNESControllerPresent[NUM_JOYSTICKS] = {0, 0};
+---
+> int BESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
+> int BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
+106c92
+< extern gameInfo_t *gameInfo;
+---
+> //extern gameInfo_t *gameInfo;
+112c98
+< void beagleSNESResetJoysticks(void) {
+---
+> void BESResetJoysticks(void) {
+114c100
+<   beagleSNESCheckJoysticks();
+---
+>   BESCheckJoysticks();
+117c103
+< void beagleSNESCheckJoysticks(void) {
+---
+> void BESCheckJoysticks(void) {
+155,156c141,142
+<         beagleSNESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
+<         beagleSNESControllerPresent[i] = 1;
+---
+>         BESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
+>         BESControllerPresent[i] = 1;
+159,160c145,146
+<         beagleSNESDeviceMap[tempBuf[retVal - 1] - '0'] = (i-NUM_JOYSTICKS);
+<         beagleSNESControllerPresent[(i-NUM_JOYSTICKS)] = 1;
+---
+>         BESDeviceMap[tempBuf[retVal - 1] - '0'] = (i-NUM_JOYSTICKS);
+>         BESControllerPresent[(i-NUM_JOYSTICKS)] = 1;
+167,168c153,154
+<         beagleSNESDeviceMap[i] = -1;
+<         beagleSNESControllerPresent[i] = 0;
+---
+>         BESDeviceMap[i] = -1;
+>         BESControllerPresent[i] = 0;
+171,172c157,158
+<         beagleSNESDeviceMap[(i-NUM_JOYSTICKS)] = -1;
+<         beagleSNESControllerPresent[(i-NUM_JOYSTICKS)] = 0;
+---
+>         BESDeviceMap[(i-NUM_JOYSTICKS)] = -1;
+>         BESControllerPresent[(i-NUM_JOYSTICKS)] = 0;
+177,178c163,164
+<       beagleSNESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
+<       beagleSNESControllerPresent[i] = 1;
+---
+>       BESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
+>       BESControllerPresent[i] = 1;
+181,182c167,168
+<       beagleSNESDeviceMap[i] = -1;
+<       beagleSNESControllerPresent[i] = 0;
+---
+>       BESDeviceMap[i] = -1;
+>       BESControllerPresent[i] = 0;
+211c197
+<       if ((beagleSNESDeviceMap[event->jbutton.which] == 0) && // Gamepad 0
+---
+>       if ((BESDeviceMap[event->jbutton.which] == 0) && // Gamepad 0
+221,222c207,210
+<           if ((event->jbutton.button == selectButtonNum) || /* Select button */
+<             (event->jbutton.button == startButtonNum) ) /* Start button */
+---
+>           if ((event->jbutton.button == 
+>               BESButtonMap[0][TAG_SELECT-TAG_FIRST_CONTROL]) ||
+>             (event->jbutton.button == 
+>               BESButtonMap[0][TAG_START-TAG_FIRST_CONTROL]) )
+233c221
+<       if ((beagleSNESDeviceMap[event->jaxis.which] == 0) && // Gamepad 0
+---
+>       if ((BESDeviceMap[event->jaxis.which] == 0) && // Gamepad 0
+245c233
+<       if ((beagleSNESDeviceMap[event->jaxis.which] == 0) && // Gamepad 0
+---
+>       if ((BESDeviceMap[event->jaxis.which] == 0) && // Gamepad 0
+261,305d248
+< #if 0 // AWH
+< static void loadGameConfig(void) {
+<   FILE *config = fopen("/boot/uboot/beaglesnes/games.cfg", "r");
+<   char buffer[128];
+<   int currentGame = 0;
+<   int currentLine = 0;
+<   int length = 0;
+< 
+<   if (!config) {
+<     fprintf(stderr, "Unable to open game configuration file game.cfg\n");
+<     return;
+<   }
+< 
+<   /* TODO: Make the number of games in the menu variable */
+<   fgets(buffer, 127, config);
+<   totalGames = atoi(buffer);
+<   gameInfo = (gameInfo_t *)calloc(totalGames, sizeof(gameInfo_t));
+<   for (currentGame = 0; currentGame < totalGames; currentGame++) {
+<     fgets(gameInfo[currentGame].gameTitle, 63, config);
+<     length = strlen(gameInfo[currentGame].gameTitle);
+<     gameInfo[currentGame].gameTitle[length-1] = '\0';
+< 
+<     fgets(gameInfo[currentGame].romFile, 127, config);
+<     length = strlen(gameInfo[currentGame].romFile);
+<     gameInfo[currentGame].romFile[length-1] = '\0';
+<     fgets(buffer, 127, config);
+<     length = strlen(buffer);
+<     buffer[length-1] = '\0';
+<     sprintf(gameInfo[currentGame].boxImage, "boxes/%s", buffer);
+< 
+<     for (currentLine = 0; currentLine < 5; currentLine++) {
+<       fgets(gameInfo[currentGame].infoText[currentLine], 127, config);
+<       length = strlen(gameInfo[currentGame].infoText[currentLine]);
+<       gameInfo[currentGame].infoText[currentLine][length-1] = '\0';
+< 
+<     }
+<     fgets(gameInfo[currentGame].dateText, 31, config);
+<     length = strlen(gameInfo[currentGame].dateText);
+<     gameInfo[currentGame].dateText[length-1] = '\0';
+< 
+<     fgets(gameInfo[currentGame].genreText, 63, config);
+<     length = strlen(gameInfo[currentGame].genreText);
+<     gameInfo[currentGame].genreText[length-1] = '\0';
+< 
+<   }
+307,308d249
+< }
+< #endif // AWH
+316c257
+< int doGui(void)
+---
+> int doGuiSetup(void)
+318,344c259
+<   SDL_Surface *screen;
+<   int i, k, r, g, b;
+<   Uint16 pixel;
+<   SDL_Event event;
+<   SDL_Rect srcRect;
+< 
+<   SDL_Surface *logo;
+< 
+<   SDL_Surface *gradient;
+< #if defined(CAPE_LCD3)
+<   SDL_Rect gradientRect = {0, 24, 0, 0};
+<   SDL_Rect logoRect = {15, 2, 0, 0};
+< #else
+<   SDL_Rect gradientRect = {0, GRADIENT_Y_POS, 0, 0};
+<   SDL_Rect logoRect = {55, 30, 0, 0};
+< #endif /* CAPE_LCD3 */
+< 
+< #if defined(BEAGLEBONE_BLACK)
+< #if defined(CAPE_LCD3)
+<   static SDL_Rect backgroundRect = {0, 55, 320, 240-55};
+<   //audioAvailable = 0;
+< #else
+<   static SDL_Rect backgroundRect = {0, 80, 720, 480-80};
+< #endif /* CAPE_LCD3 */
+< #else
+<   static SDL_Rect backgroundRect = {0, 80, 350, 480-80}; 
+< #endif 
+---
+>   int i;
+392,396d306
+< #if 1 // AWH - BeagleSNES - Pull joystick config from SNES9X
+<   //beagleSNESResetJoysticks();
+<   S9xSetupDefaultKeymap();
+< #endif // AWH
+< 
+399c309
+<   loadGameList();
+---
+>   loadGameLists();
+401,404c311,313
+< 
+<   renderGameList(screen);
+<   renderGameInfo(screen, currentSelectedGameIndex());
+<   renderInstruct(screen, beagleSNESControllerPresent[0]);
+---
+>   //renderGameList(screen, currentPlatform);
+>   //renderGameInfo(screen, currentPlatform, currentSelectedGameIndex());
+>   //renderInstruct(screen, BESControllerPresent[0]);
+407a317,324
+>   return(0);
+> }
+> 
+> int doGui(void) {
+>   int i, k, r, g, b;
+>   SDL_Event event;
+>   Uint16 pixel;
+> 
+410,411c327
+<   //beagleSNESCheckJoysticks();
+<   beagleSNESResetJoysticks();
+---
+>   BESResetJoysticks();
+418c334
+<     renderInstruct(screen, beagleSNESControllerPresent[0]);
+---
+>     renderInstruct(screen, BESControllerPresent[0]);
+460c376
+< #ifdef CAPE_LCD3
+---
+> //#ifdef CAPE_LCD3
+501c417
+< #endif /* CAPE_LCD3 */
+---
+> //#endif /* CAPE_LCD3 */
+520c436
+<     beagleSNESCheckJoysticks();
+---
+>     BESCheckJoysticks();
+561c477
+< 
+---
+> #if 0 // AWH
+563c479
+< 
+---
+> #endif // AWH
+diff sdl/guiGameInfo.cpp /media/notroot/rootfs/home/ubuntu/build/bes_src/guiGameInfo.cpp
+105c105,109
+<       sprintf(tempBuf, "/boot/uboot/beaglesnes/image/");
+---
+> #if defined(BEAGLEBONE_BLACK) || defined(BEAGLEBOARD_XM)
+>       sprintf(tempBuf, "/boot/uboot/beaglesnes/images/");
+> #else
+>       sprintf(tempBuf, "./images/");
+> #endif
+Only in /media/notroot/rootfs/home/ubuntu/build/bes_src: guiGameInfo.o
+diff sdl/guiGameList.cpp /media/notroot/rootfs/home/ubuntu/build/bes_src/guiGameList.cpp
+105c105
+< void loadGameList(void)
+---
+> void loadGameLists(void)
+107c107
+<   int i = 0, thumbHeight = 0;
+---
+>   int i = 0, x = 0, thumbHeight = 0;
+109c109
+<   gameInfo_t *currentNode = gameInfo;
+---
+>   gameInfo_t *currentNode;
+110a111
+>   /* Load our fonts and gfx */
+113a115,120
+>   selectOverlay = IMG_Load("gfx/overlay_bar.png");
+>   itemListSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, 290, 8*(selectOverlay->h - 8), 16, 0x7C00, 0x03E0, 0x001F, 0);
+>   thumbOrig = IMG_Load("gfx/thumb.png");
+> 
+>   /* Begin constructing the gfx for the games list */
+>   thumb = NULL;
+115c122,123
+<   for (i=0; i < totalGames; i++) {
+---
+>   currentNode = gameInfo;
+>   for (x=0; x < totalGames; x++) {
+117c125
+<     itemText[i] = TTF_RenderText_Blended(itemListFont, currentNode->gameTitle, itemTextColor);
+---
+>     itemText[x] = TTF_RenderText_Blended(itemListFont, currentNode->gameTitle, itemTextColor);
+119,122d126
+<   selectOverlay = IMG_Load("gfx/overlay_bar.png");
+<   itemListSurface = SDL_CreateRGBSurface(SDL_SWSURFACE, 290, 8*(selectOverlay->h - 8), 16, 0x7C00, 0x03E0, 0x001F, 0);  
+< 
+<   if (totalGames <= MAX_GAMES_PER_SCREEN) return;
+124,143c128,141
+<   /* Construct the thumb for the slider */
+<   thumbOrig = IMG_Load("gfx/thumb.png");
+< 
+<   /* Figure out how tall the thumb must be */
+<   thumbHeight = (TRACK_HEIGHT - 4) - ((totalGames - MAX_GAMES_PER_SCREEN) / (float)totalGames) * (TRACK_HEIGHT - 4);
+<   if (thumbHeight < 14) thumbHeight = 14;
+<   thumb = SDL_CreateRGBSurface(SDL_SWSURFACE, thumbOrig->w, thumbHeight, 16, 0x7C00, 0x03E0, 0x001F, 0);
+<   /* Top of thumb */
+<   SDL_BlitSurface(thumbOrig, NULL, thumb, NULL);
+<   /* Bottom of thumb */ 
+<   thumbSrcRect.w = thumbOrig->w;
+<   thumbSrcRect.h = 7;
+<   thumbSrcRect.y = 8;
+<   thumbDstRect.y = thumbHeight - thumbSrcRect.h;
+<   SDL_BlitSurface(thumbOrig, &thumbSrcRect, thumb, &thumbDstRect);
+<   /* Thumb slices */
+<   thumbSrcRect.y = 7;
+<   thumbSrcRect.h = 1;
+<   for (i=0; i<(thumbHeight-14); i++) {
+<     thumbDstRect.y = i+7;
+---
+>   /* Do we need to create a thumb for this list? */
+>   if (totalGames > MAX_GAMES_PER_SCREEN)
+>   {
+>     /* Figure out how tall the thumb must be */
+>     thumbHeight = (TRACK_HEIGHT - 4) - ((totalGames - MAX_GAMES_PER_SCREEN) / (float)totalGames) * (TRACK_HEIGHT - 4);
+>     if (thumbHeight < 14) thumbHeight = 14;
+>     thumb = SDL_CreateRGBSurface(SDL_SWSURFACE, thumbOrig->w, thumbHeight, 16, 0x7C00, 0x03E0, 0x001F, 0);
+>     /* Top of thumb */
+>     SDL_BlitSurface(thumbOrig, NULL, thumb, NULL);
+>     /* Bottom of thumb */ 
+>     thumbSrcRect.w = thumbOrig->w;
+>     thumbSrcRect.h = 7;
+>     thumbSrcRect.y = 8;
+>     thumbDstRect.y = thumbHeight - thumbSrcRect.h;
+144a143,152
+>     /* Thumb slices */
+>     thumbSrcRect.y = 7;
+>     thumbSrcRect.h = 1;
+>     for (x=0; x<(thumbHeight-14); x++) {
+>       thumbDstRect.y = x+7;
+>       SDL_BlitSurface(thumbOrig, &thumbSrcRect, thumb, &thumbDstRect);
+>     }
+diff sdl/gui.h /media/notroot/rootfs/home/ubuntu/build/bes_src/gui.h
+1,37d0
+< /*****************************************************************************
+<   BeagleSNES - Super Nintendo Entertainment System (TM) emulator for the
+<   BeagleBoard-xM platform.
+< 
+<   See CREDITS file to find the copyright owners of this file.
+< 
+<   GUI front-end code (c) Copyright 2013 Andrew Henderson (hendersa@icculus.org)
+< 
+<   BeagleSNES homepage: http://www.beaglesnes.org/
+<   
+<   BeagleSNES is derived from the Snes9x open source emulator:  
+<   Snes9x homepage: http://www.snes9x.com/
+< 
+<   Permission to use, copy, modify and/or distribute BeagleSNES in both binary
+<   and source form, for non-commercial purposes, is hereby granted without
+<   fee, providing that this license information and copyright notice appear
+<   with all copies and any derived work.
+< 
+<   This software is provided 'as-is', without any express or implied
+<   warranty. In no event shall the authors be held liable for any damages
+<   arising from the use of this software or it's derivatives.
+< 
+<   BeagleSNES is freeware for PERSONAL USE only. Commercial users should
+<   seek permission of the copyright holders first. Commercial use includes,
+<   but is not limited to, charging money for BeagleSNES or software derived 
+<   from BeagleSNES, including BeagleSNES or derivatives in commercial game 
+<   bundles, and/or using BeagleSNES as a promotion for your commercial 
+<   product.
+< 
+<   The copyright holders request that bug fixes and improvements to the code
+<   should be forwarded to them so everyone can benefit from the modifications
+<   in future versions.
+< 
+<   Super NES and Super Nintendo Entertainment System are trademarks of
+<   Nintendo Co., Limited and its subsidiary companies.
+<  *****************************************************************************/
+< 
+43a7
+> extern SDL_Surface *screen;
+48,51c12,15
+< extern int beagleSNESDeviceMap[NUM_JOYSTICKS];
+< void beagleSNESResetJoysticks(void);
+< void beagleSNESCheckJoysticks(void);
+< extern int beagleSNESControllerPresent[NUM_JOYSTICKS];
+---
+> extern int BESDeviceMap[NUM_JOYSTICKS];
+> void BESResetJoysticks(void);
+> void BESCheckJoysticks(void);
+> extern int BESControllerPresent[NUM_JOYSTICKS];
+52a17
+> extern int doGuiSetup(void);
+55c20
+< extern void loadGameList(void);
+---
+> extern void loadGameLists(void);
+89a55,113
+> enum {
+>   PLATFORM_INVALID = -1,
+>   PLATFORM_FIRST = 0,
+>   PLATFORM_SNES = PLATFORM_FIRST,
+>   PLATFORM_GBA,
+>   PLATFORM_NES,
+>   NUM_PLATFORMS
+> };
+> 
+> enum {
+>   PLAYER_INVALID = -1,
+>   PLAYER_ONE = 0,
+>   PLAYER_TWO,
+>   NUM_PLAYERS
+> };
+> 
+> /* Define the XML tags used in the games.xml */
+> typedef enum {
+>   /* Start! */
+>   TAG_FIRST = 0,
+>   /* Platform tags */
+>   TAG_FIRST_PLATFORM = TAG_FIRST,
+>   TAG_SNES = TAG_FIRST_PLATFORM,
+>   TAG_GBA,
+>   TAG_NES,
+>   TAG_LAST_PLATFORM = TAG_NES,
+>   /* Game menu tags */
+>   TAG_GAME,
+>   TAG_TITLE,
+>   TAG_ROM,
+>   TAG_IMAGE,
+>   TAG_YEAR,
+>   /* There can be multiple of these per "game" tag */
+>   TAG_GENRE,
+>   TAG_TEXT,
+>   TAG_GAME_LAST = TAG_TEXT,
+>   /* Controller config tags */
+>   TAG_PLAYER1,
+>   TAG_PLAYER2,
+>   TAG_FIRST_CONTROL,
+>   TAG_VAXIS = TAG_FIRST_CONTROL,
+>   TAG_HAXIS,
+>   TAG_LEFT,
+>   TAG_RIGHT,
+>   TAG_A,
+>   TAG_B,
+>   TAG_X,
+>   TAG_Y,
+>   TAG_SELECT,
+>   TAG_START,
+>   TAG_LAST_CONTROL = TAG_START,
+>   /* Root config tag */
+>   TAG_CONFIG,
+>   /* Done! */
+>   TAG_LAST
+> } TagUsed_t;
+> 
+> extern unsigned char BESButtonMap[NUM_PLAYERS][10];
+> 
+103a128,129
+>   /* Platform this game runs on */
+>   int platform;
+110,120d135
+< #if 0 // AWH 
+< typedef struct {
+<   char gameTitle[64]; /* The name of the game */
+<   char romFile[128]; /* Filename of the ROM image */
+<   char boxImage[128]; /* Filename of the image of the game's box */
+<   char infoText[5][128]; /* Lines of text that describe the game */
+<   char dateText[32]; /* Four digit year the game was released */
+<   char genreText[64]; /* Short descriptive genre text */
+< } gameInfo_t;
+< #endif // AWH
+< 
+122a138,139
+> extern int currentPlatform;
+> 
+133a151,154
+> 
+> /* Emulator launch functions */
+> extern int gba_main(char *filename);
+> extern int nes_main(char *filename);
+diff sdl/guiParser.cpp /media/notroot/rootfs/home/ubuntu/build/bes_src/guiParser.cpp
+16a17,18
+> unsigned char BESButtonMap[NUM_PLAYERS][10];
+> 
+18c20
+< gameInfo_t *gameInfo = NULL;
+---
+> gameInfo_t *gameInfo;
+21,39c23,24
+< gameInfo_t *prevGame = NULL;
+< gameInfo_t *currentGame = NULL;
+< 
+< /* Define the XML tags used in the games.xml */
+< typedef enum {
+<   /* Start! */
+<   TAG_FIRST = 0,
+<   TAG_SNES = 0,
+<   TAG_GAME,
+<   TAG_TITLE,
+<   TAG_ROM,
+<   TAG_IMAGE,
+<   TAG_YEAR,
+<   /* There can be multiple of these per "game" tag */
+<   TAG_GENRE,
+<   TAG_TEXT,
+<   /* Done! */
+<   TAG_LAST
+< } TagUsed_t;
+---
+> gameInfo_t *prevGame;
+> gameInfo_t *currentGame;
+47,54c32,57
+<   { "snes",  1 }, /* TAG_SNES */
+<   { "game",  2 }, /* TAG_GAME */
+<   { "title", 3 }, /* TAG_TITLE */
+<   { "rom",   3 }, /* TAG_ROM */
+<   { "image", 3 }, /* TAG_IMAGE */
+<   { "year",  3 }, /* TAG_YEAR */
+<   { "genre", 3 }, /* TAG_GENRE */
+<   { "text",  3 }  /* TAG_TEXT */
+---
+>   { "snes",    2 }, /* TAG_SNES */
+>   { "gba",     2 }, /* TAG_GBA */
+>   { "nes",     2 }, /* TAG_NES */
+> 
+>   { "game",    3 }, /* TAG_GAME */
+>   { "title",   4 }, /* TAG_TITLE */
+>   { "rom",     4 }, /* TAG_ROM */
+>   { "image",   4 }, /* TAG_IMAGE */
+>   { "year",    4 }, /* TAG_YEAR */
+>   { "genre",   4 }, /* TAG_GENRE */
+>   { "text",    4 }, /* TAG_TEXT */
+> 
+>   { "player1", 2 }, /* TAG_CONTROL */
+>   { "player2", 2 }, /* TAG_PLAYER */
+>   { "vaxis",   3 }, /* TAG_VAXIS */
+>   { "haxis",   3 }, /* TAG_HAXIS */
+>   { "L",       3 }, /* TAG_LEFT */
+>   { "R",       3 }, /* TAG_RIGHT */
+>   { "A",       3 }, /* TAG_A */
+>   { "B",       3 }, /* TAG_B */
+>   { "X",       3 }, /* TAG_X */
+>   { "Y",       3 }, /* TAG_Y */
+>   { "select",  3 }, /* TAG_SELECT */
+>   { "start",   3 }, /* TAG_START */
+> 
+>   { "config",  1 }, /* TAG_CONFIG */
+56a60,63
+> /* Platform that the current game is for */
+> int currentPlatform = PLATFORM_INVALID;
+> int currentPlayer = PLAYER_INVALID;
+> 
+119,122c126
+<           prevGame = currentGame;
+<           currentGame->next = (gameInfo_t *)calloc(1, sizeof(gameInfo_t));
+<           currentGame = currentGame->next;
+<           currentGame->prev = prevGame;
+---
+>           currentGame = (gameInfo_t *)calloc(1, sizeof(gameInfo_t));
+124a129
+>           currentGame->platform = currentPlatform;
+136c141,150
+<         default:
+---
+> 
+>         case TAG_SNES:
+>         case TAG_GBA:
+>         case TAG_NES:
+>           fprintf(stderr, "<%s>", tagInfo[i].name);
+>           currentPlatform = i;
+>           break;
+> 
+>         case TAG_PLAYER1:
+>         case TAG_PLAYER2:
+137a152,156
+>           currentPlayer = i - TAG_PLAYER1;
+>           break;
+> 
+>         default:
+>           fprintf(stderr, "<%s (%d)>", tagInfo[i].name, i);
+148a168
+>   unsigned int control = 0;
+156a177
+>       fprintf(stderr, "i: %d, inTagFlag[i]: %d\n", i, inTagFlag[i]);
+167c188
+<             for (x = TAG_GAME + 1; x < TAG_LAST; x++)
+---
+>             for (x = TAG_GAME + 1; x < TAG_GAME_LAST; x++)
+171,174c192,197
+<               fprintf(stderr, "ERROR: Tried to close <game> tag while another tag was open\n");
+<               if (currentGame) free(currentGame);
+<               currentGame = prevGame;
+<               prevGame = currentGame->prev;
+---
+>               fprintf(stderr, "ERROR: Found </game> tag in incorrect place\n");
+>               if (currentGame)
+>               { 
+>                 free(currentGame);
+>                 currentGame = NULL;
+>               }
+180d202
+<               /* TODO: Store this */
+181a204,212
+>               prevGame = gameInfo;
+>               while(prevGame->next)
+>               {
+>                 if (strcmp(prevGame->next->gameTitle, currentGame->gameTitle) > 0)
+>                   break;
+>                 prevGame = prevGame->next;
+>               }
+>               currentGame->next = prevGame->next;
+>               prevGame->next = currentGame;
+186,189c217,221
+<               if (currentGame) free(currentGame);
+<               currentGame = prevGame;
+<               prevGame = currentGame->prev;
+<               
+---
+>               if (currentGame)
+>               {
+>                 free(currentGame);
+>                 currentGame = NULL;
+>               }
+262a295,336
+>           case TAG_SNES:
+>           case TAG_GBA:
+>           case TAG_NES:
+>             if (!definedTagFlag[i])
+>             {
+>               fprintf(stderr, "ERROR: Found a </%s> tag without a <%s> tag\n", tagInfo[i].name, tagInfo[i].name);
+>             }
+>             else
+>             {
+>               definedTagFlag[i] = 0;
+>               currentPlatform = PLATFORM_INVALID;
+>             }
+>             break;
+> 
+>           case TAG_PLAYER1:
+>           case TAG_PLAYER2:
+>             definedTagFlag[i] = 0;
+>             currentPlayer = PLAYER_INVALID;
+>             break;
+> 
+>           case TAG_VAXIS:
+>           case TAG_HAXIS:
+>           case TAG_LEFT:
+>           case TAG_RIGHT:
+>           case TAG_A:
+>           case TAG_B:
+>           case TAG_X:
+>           case TAG_Y:
+>           case TAG_SELECT:
+>           case TAG_START:
+>             if ((currentPlayer == PLAYER_INVALID) || (currentPlayer >= NUM_PLAYERS))
+>             {
+>               fprintf(stderr, "ERROR: Found a </%s> tag outside of a <player?> tag\n", tagInfo[i].name);
+>             }
+>             else
+>             {
+>               sscanf(workingBuf, "%u", &control);
+>               BESButtonMap[currentPlayer][i - TAG_FIRST_CONTROL] = control; 
+>             }
+>             definedTagFlag[i] = 0;
+>             break;
+> 
+282a357
+>   gameInfo = NULL;
+288a364
+> #if defined(BEAGLEBONE_BLACK) || defined(BEAGLEBOARD_XM)
+289a366,368
+> #else
+>   config = fopen("./games.xml", "r");
+> #endif
+302c381
+<   fprintf(stderr, "Creating sentinel\n");
+---
+>   fprintf(stderr, "Creating sentinels\n");
+322,326d400
+< #if 0 // AWH
+< int main(void)
+< {
+<   int x, i = 1;
+<   loadGameConfig();
+328,348d401
+<   currentGame = gameInfo;
+<   while(currentGame->next)
+<   {
+<     currentGame = currentGame->next;
+<     fprintf(stderr, "Node %d:\n", i);
+<     fprintf(stderr, "  Title: '%s'\n", currentGame->gameTitle);
+<     fprintf(stderr, "  Rom: '%s'\n", currentGame->romFile);
+<     fprintf(stderr, "  Image: '%s'\n", currentGame->imageFile);
+<     fprintf(stderr, "  Date: '%s'\n", currentGame->dateText);
+<     for (x=0; x < MAX_GENRE_TYPES; x++)
+<     {
+<       fprintf(stderr, "  Genre%d: '%s'\n", x, currentGame->genreText[x]);
+<     }
+<     for (x = 0; x < MAX_TEXT_LINES; x++)
+<     {
+<       fprintf(stderr, "  Text%d: '%s'\n", x, currentGame->infoText[x]);
+<     }
+<     i++;
+<   }  
+< }
+< #endif // AWH
