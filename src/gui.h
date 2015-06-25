@@ -61,6 +61,15 @@ enum {
 };
 extern SDL_Rect guiPiece[TOTAL_PIECES];
 
+/* GUI size: Small is for displays 480x272 or smaller, normal is for 
+  all others */
+typedef enum {
+	GUI_SMALL = 0,
+	GUI_NORMAL
+} guiSize_t;
+extern guiSize_t guiSize;
+
+
 #define NUM_JOYSTICKS 2
 #define PAUSE_GUI_WIDTH 300
 #define PAUSE_GUI_HEIGHT 220
@@ -280,6 +289,8 @@ enum {
 };
 
 extern void EGLSrcSize(unsigned int width, unsigned int height);
+extern void EGLSrcSizeGui(unsigned int width, unsigned int height, 
+  unsigned int smallGui);
 extern void EGLDestSize(unsigned int width, unsigned int height);
 extern void EGLSetupGL(void);
 extern void EGLBlitGL(void *buf);

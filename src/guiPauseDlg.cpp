@@ -46,9 +46,6 @@
 #include "gui.h"
 #include "beagleboard.h"
 #include "savepng.h"
-#if 0 // AWH - FCEUX
-#include "nes/drivers/sdl/sdl.h"
-#endif // AWH
 
 // AWH - Nestopia
 #if !defined (BUILD_SNES)
@@ -286,9 +283,17 @@ uint32_t doPauseGui(const char *romname, int platform)
 	nextIndex = currentIndex = frameCounter = 0;
 
 	/* Do slide-in animation */
-	dialogXPos = 1.5f;
-	dialogYPos = 0.0f;
-	scaleX = scaleY = 0.5f;
+	if (guiSize == GUI_NORMAL)
+	{
+		dialogXPos = 1.5f;
+		dialogYPos = 0.0f;
+		scaleX = scaleY = 0.5f;
+	} else 
+	{
+		dialogXPos = 1.5f;
+		dialogYPos = 0.0f;
+		scaleX = scaleY = 1.0f;
+	}
 	SDL_BlitSurface(pauseMenuSurface, NULL, screenPause, &menuPos);
 	for(i = 0; i < 30; i++)
 	{

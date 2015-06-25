@@ -30,6 +30,7 @@ SDL_Rect guiPiece[TOTAL_PIECES] = {
         {0,0,8,8}, {24,0,8,8}, {64,0,8,8}, {88,0,8,8},
         {8,0,8,4}, {72,4,8,4}, {32,0,4,8}, {44,0,4,8}
 };
+guiSize_t guiSize;
 
 /* Gamepad maps to keys: L, R, A, B, X, Y, Select, Start, Pause */
 static SDLKey gamepadButtonKeyMap[2][9] = {

@@ -20,6 +20,11 @@
 #include <linux/usbdevice_fs.h>
 #endif
 
+/* Set the resolution at or under which you need to use the
+  GUI for "small" screens */
+#define GUI_SMALL_WIDTH 480
+#define GUI_SMALL_HEIGHT 272
+
 pthread_t loadingThread;
 static void *loadingThreadFunc(void *);
 
@@ -35,6 +40,7 @@ SDL_Rect guiPiece[TOTAL_PIECES] = {
         {0,0,8,8}, {24,0,8,8}, {64,0,8,8}, {88,0,8,8},
         {8,0,8,4}, {72,4,8,4}, {32,0,4,8}, {44,0,4,8}
 };
+guiSize_t guiSize;
 
 /* Gamepad maps to keys: L, R, A, B, X, Y, Select, Start, Pause */
 static SDLKey gamepadButtonKeyMap[2][9] = {
@@ -331,7 +337,7 @@ void reinitVideo(void) {
 
   /* Set video mode */
 #if defined(PC_PLATFORM)
-  if ( (fbscreen = SDL_SetVideoMode(/*720, 480,*/512,384, 16, 0)) == NULL ) {
+  if ( (fbscreen = SDL_SetVideoMode(/*720, 480,*/320, 240, 16, 0)) == NULL ) {
     fprintf(stderr, "Couldn't set 720x480x16 video mode: %s\n",
       SDL_GetError());
     quit(2);
@@ -344,13 +350,19 @@ void reinitVideo(void) {
   }
 #endif 
 
+  /* Determine the size of the GUI to use */
+  if ((fbscreen->w <= GUI_SMALL_WIDTH) || (fbscreen->h <= GUI_SMALL_HEIGHT))
+    guiSize = GUI_SMALL;
+  else
+    guiSize = GUI_NORMAL;
+
   /* Shut off the mouse pointer */
   SDL_ShowCursor(SDL_DISABLE);
 
   /* Turn on EGL */
   EGLInitialize();
   EGLDestSize(fbscreen->w, fbscreen->h);
-  EGLSrcSize(720, 480);
+  EGLSrcSizeGui(720, 480, (guiSize == GUI_SMALL) );
 }
 
 int doGuiSetup(void)
@@ -370,7 +382,7 @@ int doGuiSetup(void)
 
   /* Set video mode */
 #if defined(PC_PLATFORM)
-  if ( (fbscreen = SDL_SetVideoMode(/*720, 480,*/512,384, 16, 0)) == NULL ) {
+  if ( (fbscreen = SDL_SetVideoMode(/*720, 480,*/320, 240, 16, 0)) == NULL ) {
     fprintf(stderr, "Couldn't set 720x480x16 video mode: %s\n",
       SDL_GetError());
     quit(2);
@@ -405,6 +417,7 @@ int doGuiSetup(void)
   /* Turn on EGL */
   EGLInitialize();
   EGLDestSize(fbscreen->w, fbscreen->h);
+  /* Splash screen has to run in "normal" GUI size here */
   EGLSrcSize(720, 480);
 
   /* Init font engine */
@@ -480,7 +493,7 @@ int doGui(void) {
 
   /* Get the screen set up again */
   EGLDestSize(fbscreen->w, fbscreen->h);
-  EGLSrcSize(720, 480);
+  EGLSrcSizeGui(720, 480, (guiSize == GUI_SMALL) );
   SDL_BlitSurface(gradient, NULL, screen, &gradientRect);
   SDL_BlitSurface(logo, NULL, screen, &logoRect);
 

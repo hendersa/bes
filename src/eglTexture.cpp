@@ -236,7 +236,8 @@ void EGLSetupGL(void)
   glLoadIdentity();
 }
 
-void EGLSrcSize(unsigned int width, unsigned int height)
+void EGLSrcSizeGui(unsigned int width, 
+	unsigned int height, unsigned int smallGui)
 {
   screenshotWidth = srcWidth = (float)width;
   screenshotHeight = srcHeight = (float)height;
@@ -254,11 +255,26 @@ void EGLSrcSize(unsigned int width, unsigned int height)
   else
     texToUse = TEXTURE_1024;
 
-  translateX = -1.0f;
-  translateY = 1.0f;
-  scaleWidth = scaleHeight = 2.0f;
+  if (smallGui)
+  {
+    translateX = -1.1f;
+    translateY = 2.13f;
+    scaleWidth = 4.4f;
+    scaleHeight = 4.13f;
+  }
+  else
+  {
+    translateX = -1.0f;
+    translateY = 1.0f;
+    scaleWidth = scaleHeight = 2.0f;
+  }
 
   setupMainTexRefCoords();
+}
+
+void EGLSrcSize(unsigned int width, unsigned int height)
+{
+	EGLSrcSizeGui(width, height, 0);
 }
 
 void EGLDestSize(unsigned int width, unsigned int height)

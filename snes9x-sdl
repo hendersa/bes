@@ -1,3 +1,0 @@
-#!/bin/sh
-./snes9x-sdl.bin $1 $2 $3
-

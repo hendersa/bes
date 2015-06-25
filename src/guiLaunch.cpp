@@ -8,6 +8,8 @@
 #include "gui.h"
 #include "beagleboard.h"
 
+#define BUF_SIZE 1024
+
 #if defined(BEAGLEBONE_BLACK)
 #define BIN_NAME "/home/ubuntu/bes/snes9x-sdl"
 #define CONF_NAME "/home/ubuntu/bes/snes9x.conf"
@@ -27,10 +29,11 @@ int snes_main(const char *romname)
 {
   pid_t child, retVal;
   int status; 
-  char buffer[1024];
+  char buffer[BUF_SIZE];
+
 #if 1 /* AWH */
-  /* AWH - nice-ing this to -20 causes buffer underrun driver bug */
-  sprintf(buffer, "%s -conf %s %s\n", BIN_NAME, CONF_NAME, romname);
+  /* AWH - nice-ing this to -20 causes audio buffer underrun driver bug */
+  snprintf(buffer, BUF_SIZE - 1, "%s -conf %s \"%s\"\n", BIN_NAME, CONF_NAME, romname);
 
   shutdownVideo();
   status = system(buffer);
