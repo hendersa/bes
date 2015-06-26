@@ -90,8 +90,8 @@ void doSplashScreen(void)
 
 static void doTele(void)
 {
-	int frameCount = 0;
-	struct timeval startTime, endTime, elapsedTime;
+	uint32_t frameCount = 0;
+	struct timeval startTime, endTime;
 	int passedTime;
 	int yBasePos = 120;
 	int yInc = 25; //19;

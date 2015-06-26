@@ -84,8 +84,8 @@ static const char *joystickPath[NUM_JOYSTICKS] = {
   "/dev/input/by-path/pci-0000:02:00.0-usb-0:2.2:1.0-joystick" };
 #endif
 static SDL_Joystick *joystick[NUM_JOYSTICKS] = {NULL, NULL};
-int BESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
-int BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
+int32_t BESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
+uint32_t BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
  
 
 #define JOYSTICK_PLUGGED 1

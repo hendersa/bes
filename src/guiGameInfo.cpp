@@ -60,8 +60,8 @@ static SDL_Surface *dateHeader;
 //static TTF_Font *headerFont;
 //static TTF_Font *titleFont;
 
-static SDL_Color itemTextColor={255,255,255};
-static SDL_Color headerTextColor={192, 192, 192};
+static SDL_Color itemTextColor={255,255,255,255};
+static SDL_Color headerTextColor={192,192,192,255};
 
 static SDL_Rect titleDstRect={X_POS + 18, Y_POS + 5, 0, 0};
 static SDL_Rect backgroundRect={X_POS, Y_POS, 720-X_POS-1, 480-Y_POS};
@@ -101,7 +101,7 @@ void loadGameInfo(void)
 fprintf(stderr, "Image: '%s'\n", tempBuf);
     infoPanel[i].box = IMG_Load(tempBuf);
     if (currentNode->genreText[0][0]) {
-      sprintf(tempBuf, currentNode->genreText[0]);
+      strcpy(tempBuf, currentNode->genreText[0]);
       if (currentNode->genreText[1][0]) {
         strcat(tempBuf, "/");
         strcat(tempBuf, currentNode->genreText[1]);
@@ -125,7 +125,7 @@ fprintf(stderr, "Image: '%s'\n", tempBuf);
   }
 }
 
-void renderGameInfo(SDL_Surface *screen, int i) 
+void renderGameInfo(SDL_Surface *screen, const uint32_t i) 
 {
   int x = 0;
   SDL_FillRect(screen, &backgroundRect, 0x18E3);

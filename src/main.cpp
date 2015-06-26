@@ -20,7 +20,6 @@ int main (int argc, char **argv)
 {
 	int guiReturn, i;
 	gameInfo_t *currentNode;
-	char romFilename[512];
 	SDL_Event event;
 
 	printf("Beagle Entertainment System\n");
@@ -48,7 +47,6 @@ int main (int argc, char **argv)
 		currentNode = gameInfo->next;
 		for (i=0; i < guiReturn; i++)
 			currentNode = currentNode->next;
-		//strcat(romFilename, currentNode->romFile);
 		fprintf(stderr, "rom_filename: %s\n", currentNode->romFile);
 
 		/* Clean out any events still in the queue */

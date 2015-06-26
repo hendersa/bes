@@ -46,23 +46,22 @@
 #include <SDL.h>
 #include "gui.h"
 
+#if defined(BEAGLEBONE_BLACK)
 #define GPIO_DATA_IN_REG	0x138
 #define GPIO_SETDATAOUT		0x194
 #define GPIO_CLEARDATAOUT	0x190
-
 #define NUM_GPIO_BANKS 4
-
 static uint32_t *gpios[NUM_GPIO_BANKS];
 static uint32_t *controlModule;
-static int gpioEnabled;
 static uint8_t currentGPIOState[GPIO_MAP_SIZE];
 static uint8_t lastGPIOState[GPIO_MAP_SIZE];
 static uint8_t changeGPIOState[GPIO_MAP_SIZE];
-
 static void gpioUpdate(void);
 static int gpioMmap(void);
+#endif /* BEAGLEBONE_BLACK */
+static uint32_t gpioEnabled;
 
-int gpioPinSetup(void)
+uint32_t gpioPinSetup(void)
 {
 #if !defined(BEAGLEBONE_BLACK)
 	gpioEnabled = 0;
@@ -142,7 +141,7 @@ int gpioPinSetup(void)
 	return(gpioEnabled);
 #endif /* BEAGLEBONE_BLACK */
 }
-
+#if defined(BEAGLEBONE_BLACK)
 int gpioMmap(void)
 {
 	static const uint32_t gpioAddrs[NUM_GPIO_BANKS] =
@@ -269,4 +268,7 @@ void gpioEvents(void)
 		}	/* end changeState */	
 	} /* end for loop */
 }
+#else
+void gpioEvents(void) {}
+#endif /* BEAGLEBONE_BLACK */
 

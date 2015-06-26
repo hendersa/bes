@@ -67,7 +67,6 @@ int EGLInitialize(void)
     EGLint format;
     EGLint width;
     EGLint height;
-    GLfloat ratio;
    
 #if defined(PC_PLATFORM)
     SDL_SysWMinfo wmInfo;
@@ -162,21 +161,6 @@ fprintf(stderr, "Finished eglMakeCurrent()\n");
     }
 fprintf(stderr, "Finished eglQuerySurface() width: %d height: %d\n", width, height);
 
-#if 0
-    glDisable(GL_DITHER);
-    glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_FASTEST);
-    glClearColor(0, 0, 0, 0);
-    glEnable(GL_CULL_FACE);
-    glShadeModel(GL_SMOOTH);
-    glEnable(GL_DEPTH_TEST);
-    
-    glViewport(0, 0, width, height);
-
-    ratio = (GLfloat) width / height;
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glFrustumf(-ratio, ratio, -1, 1, 1, 10);
-#endif
     glEnable(GL_DEPTH_TEST);
     EGLSetupGL();
 

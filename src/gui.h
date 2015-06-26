@@ -78,11 +78,11 @@ extern guiSize_t guiSize;
 extern void doAudioDlg(void);
 
 /* Map of js0, js1, etc. to the proper joystick (-1 if no joystick) */
-extern int BESDeviceMap[NUM_JOYSTICKS];
+extern int32_t BESDeviceMap[NUM_JOYSTICKS];
 extern void BESResetJoysticks(void);
 extern void BESCheckJoysticks(void);
 extern void handleJoystickEvent(SDL_Event *event);
-extern int BESControllerPresent[NUM_JOYSTICKS];
+extern uint32_t BESControllerPresent[NUM_JOYSTICKS];
 extern uint32_t BESPauseCombo;
 
 extern int doGuiSetup(void);
@@ -95,22 +95,23 @@ extern void loadAudio(void);
 /* GPIO */
 /* Four axis buttons, eight controller buttons, one pause */
 #define GPIO_MAP_SIZE 13
-extern int gpioPinSetup(void);
+extern uint32_t gpioPinSetup(void);
 extern void gpioEvents(void);
 
 /* guiParser.c */
 extern int loadGameConfig(void);
 
-extern void renderInstruct(SDL_Surface *screen, int gamepadPresent);
+extern void renderInstruct(SDL_Surface *screen, 
+  const uint32_t gamepadPresent);
 extern void renderGameList(SDL_Surface *screen);
-extern void renderGameInfo(SDL_Surface *screen, int i);
+extern void renderGameInfo(SDL_Surface *screen, const uint32_t i);
 #if defined (CAPE_LCD3)
-extern void renderVolume(SDL_Surface *surface);
+extern void renderVolume(const SDL_Surface *surface);
 #endif /* CAPE_LCD3 */
-extern int currentSelectedGameIndex(void);
+extern uint32_t currentSelectedGameIndex(void);
 extern void incrementGameListFrame(void);
-extern void shiftSelectedGameUp(int step);
-extern void shiftSelectedGameDown(int step);
+extern void shiftSelectedGameUp(const int step);
+extern void shiftSelectedGameDown(const int step);
 extern void enableGuiAudio(void);
 extern void disableGuiAudio(void);
 extern void initAudio(void);
@@ -121,7 +122,7 @@ extern void playOverlaySnd(void);
 extern void playTeleSnd(void);
 extern void playCoinSnd(void);
 extern void changeVolume(void);
-extern int acceptButton(void);
+extern uint32_t acceptButton(void);
  
 #define DEFAULT_BOX_IMAGE "box_image.png"
 #define DEFAULT_DATE_TEXT "19XX"
@@ -216,7 +217,7 @@ typedef enum {
   TAG_LAST
 } TagUsed_t;
 
-enum {
+typedef enum {
   PLATFORM_INVALID = -1,
   PLATFORM_FIRST = TAG_FIRST_PLATFORM,
   PLATFORM_SNES = PLATFORM_FIRST,
@@ -224,7 +225,7 @@ enum {
   PLATFORM_NES,
   PLATFORM_GBC,
   NUM_PLATFORMS
-};
+} platformType_t;
 
 /* Eight buttons, one pause, and two axis */
 #define BUTTON_MAP_SIZE 11
@@ -288,17 +289,17 @@ enum {
   TEXTURE_LAST = 5
 };
 
-extern void EGLSrcSize(unsigned int width, unsigned int height);
-extern void EGLSrcSizeGui(unsigned int width, unsigned int height, 
-  unsigned int smallGui);
-extern void EGLDestSize(unsigned int width, unsigned int height);
+extern void EGLSrcSize(const uint32_t width, const uint32_t height);
+extern void EGLSrcSizeGui(const uint32_t width, const uint32_t height, 
+  const guiSize_t smallGui);
+extern void EGLDestSize(const uint32_t width, const uint32_t height);
 extern void EGLSetupGL(void);
-extern void EGLBlitGL(void *buf);
-extern void EGLBlitGLCache(void *buf, int cache);
-extern void EGLBlitPauseGL(void *buf, float pauseX, float pauseY,
-  float scaleX, float scaleY);
-extern void EGLBlitGBAGL(void *buf, float pauseX, float pauseY,
-  float scaleX, float scaleY);
+extern void EGLBlitGL(const void *buf);
+extern void EGLBlitGLCache(const void *buf, const int cache);
+extern void EGLBlitPauseGL(const void *buf, const float pauseX, 
+  const float pauseY, const float scaleX, const float scaleY);
+extern void EGLBlitGBAGL(const void *buf, const float pauseX, 
+  const float pauseY, const float scaleX, const float scaleY);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
@@ -329,7 +330,8 @@ enum {
 
 /* Pause GUI */
 extern void loadPauseGui(void);
-extern uint32_t doPauseGui(const char *romname, int platform);
+extern uint32_t doPauseGui(const char *romname, 
+  const platformType_t platform);
 enum {
   PAUSE_NONE = 0, /* No special pause activity */
   PAUSE_NEXT,  /* On the next pass through, pause */

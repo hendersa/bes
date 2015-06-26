@@ -97,7 +97,7 @@ enum
 
 static void SetupImage (void);
 static void TakedownImage (void);
-static void Repaint (bool8);
+/* AWH static void Repaint (bool8); */
 
 void S9xExtraDisplayUsage (void)
 {
@@ -303,9 +303,10 @@ fprintf(stderr, "Using fullscreen mode\n");
 void S9xPutImage (int width, int height)
 {
 	static int	prevWidth = 0, prevHeight = 0;
+#if 0 /* AWH */
 	int			copyWidth, copyHeight;
 	Blitter		blitFn = NULL;
-#if 0 // AWH
+
 	if (GUI.video_mode == VIDEOMODE_BLOCKY || GUI.video_mode == VIDEOMODE_TV || GUI.video_mode == VIDEOMODE_SMOOTH)
 		if ((width <= SNES_WIDTH) && ((prevWidth != width) || (prevHeight != height)))
 			S9xBlitClearDelta();
@@ -374,56 +375,47 @@ void S9xPutImage (int width, int height)
 
 	prevWidth  = width;
 	prevHeight = height;
-#else
-#if defined(CAPE_LCD3)
-S9xBlitPixSimple1x1((uint8 *) GFX.Screen, GFX.Pitch, GUI.blit_screen, GUI.blit_screen_pitch, width, height);
-renderVolume(GUI.sdl_screen);
-SDL_UpdateRect(GUI.sdl_screen, 0, 0, 0, 0);
-#else
-if ((prevWidth != width) || (prevHeight != height))
-{
-  if ((width <= 256) && (height <= 256))
-  {
-    GUI.blit_screen = (uint8 *)screen256->pixels;
-    GUI.blit_screen_pitch = screen256->pitch;
-  } else {
-    GUI.blit_screen = (uint8 *)screen512->pixels;
-    GUI.blit_screen_pitch = screen512->pitch;
-  }
-  prevWidth = width; prevHeight = height;
-  EGLSrcSize(width, height);
-}
+#else /* AWH */
+	if ((prevWidth != width) || (prevHeight != height))
+	{
+		if ((width <= 256) && (height <= 256))
+		{
+			GUI.blit_screen = (uint8 *)screen256->pixels;
+			GUI.blit_screen_pitch = screen256->pitch;
+		} else {
+			GUI.blit_screen = (uint8 *)screen512->pixels;
+			GUI.blit_screen_pitch = screen512->pitch;
+		}
+		prevWidth = width; prevHeight = height;
+		EGLSrcSize(width, height);
+	}
 
-/*S9xBlitPixSimple2x2*/S9xBlitPixSimple1x1((uint8 *) GFX.Screen, GFX.Pitch, GUI.blit_screen, GUI.blit_screen_pitch, width, height);
-// NTSC SDL_UpdateRect(GUI.sdl_screen, 104, 14, 512, 464 /* 478 - 14 */);
-//SDL_UpdateRect(GUI.sdl_screen, 64, 12, 512, 464);
+	S9xBlitPixSimple1x1((uint8 *) GFX.Screen, GFX.Pitch, GUI.blit_screen, 
+		GUI.blit_screen_pitch, width, height);
 
-switch(BESPauseState)
-{
-  case PAUSE_CACHE:
-  case PAUSE_CACHE_NO_DRAW:
-    EGLBlitGLCache(GUI.blit_screen, 1);
-    if (BESPauseState == PAUSE_CACHE)
-      EGLFlip();
-    Settings.Paused = 1;
-    fprintf(stderr, "AWH: SNES filename: '%s'\n", rom_filename);
-    if (doPauseGui(rom_filename, PLATFORM_SNES))
-      exit(0);
-    Settings.Paused = 0;
-    BESPauseState = PAUSE_NONE;
-    break;
+	switch(BESPauseState)
+	{
+		case PAUSE_CACHE:
+		case PAUSE_CACHE_NO_DRAW:
+			EGLBlitGLCache(GUI.blit_screen, 1);
+			if (BESPauseState == PAUSE_CACHE)
+				EGLFlip();
+			Settings.Paused = 1;
+			if (doPauseGui(rom_filename, PLATFORM_SNES))
+				exit(0);
+			Settings.Paused = 0;
+			BESPauseState = PAUSE_NONE;
+			break;
 
-  case PAUSE_NONE:
-    EGLBlitGL(GUI.blit_screen);
-    EGLFlip();
-    break;
-}
-
-//Repaint(TRUE);
-#endif
+		case PAUSE_NONE:
+			EGLBlitGL(GUI.blit_screen);
+			EGLFlip();
+			break;
+	}
 #endif // AWH
 }
 
+#if 0 /* AWH */
 static void Repaint (bool8 isFrameBoundry)
 {
 if (GUI.fullscreen == TRUE)
@@ -434,6 +426,7 @@ else
 SDL_UpdateRect(GUI.sdl_screen, 104, 6, 512, 472 /* 478 - 6 */);
 #endif // BeagleSNES
 }
+#endif /* AWH */
 
 void S9xMessage (int type, int number, const char *message)
 {

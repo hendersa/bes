@@ -21,13 +21,15 @@
 extern void reinitVideo(void);
 extern void shutdownVideo(void);
 
+#if 0
 /* Args for execve */
 char *envp[] = { NULL };
 char *argv[] = { "/usr/bin/nice", "-n", "-20", BIN_NAME, "-conf", CONF_NAME, NULL };   
+#endif
 
 int snes_main(const char *romname)
 {
-  pid_t child, retVal;
+  //pid_t child, retVal;
   int status; 
   char buffer[BUF_SIZE];
 

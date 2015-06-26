@@ -53,9 +53,7 @@ static SDL_Surface *instructButton;
 static SDL_Surface *instructButtonText;
 static SDL_Surface *instructText[2];
 
-//static TTF_Font *instructFont;
-
-static SDL_Color instructTextColor={155,152,152};
+static SDL_Color instructTextColor={155,152,152,255};
 
 static SDL_Rect instructDpadRect = {INSTRUCT_X_POS, INSTRUCT_Y_POS, 0, 0};
 static SDL_Rect instructButtonRect = {INSTRUCT_X_POS + 70, INSTRUCT_Y_POS + 45, 0, 0};
@@ -76,7 +74,7 @@ void loadInstruct(void)
   instructText[1] = TTF_RenderText_Blended(fontFS24, "PLAYER 1 GAMEPAD", instructTextColor);
 }
 
-void renderInstruct(SDL_Surface *screen, int gamepadPresent) 
+void renderInstruct(SDL_Surface *screen, const uint32_t gamepadPresent) 
 {
   if (gamepadPresent) {
     SDL_BlitSurface(instructDpad, NULL, screen, &instructDpadRect);

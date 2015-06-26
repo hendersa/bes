@@ -124,11 +124,11 @@ void setupPauseTexRefCoords(void)
   fprintf(stderr, "setupPauseTexCoords() executed\n");
 }
 
-void EGLBlitGL(void *buf) {
+void EGLBlitGL(const void *buf) {
   EGLBlitGLCache(buf, 0);
 }
 
-void EGLBlitGLCache(void *buf, int cache)
+void EGLBlitGLCache(const void *buf, const int cache)
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   switch(texToUse) {
@@ -168,28 +168,17 @@ void EGLBlitGLCache(void *buf, int cache)
   glDisableClientState(GL_VERTEX_ARRAY);
   glDisableClientState(GL_TEXTURE_COORD_ARRAY);
   glPopMatrix();
-#if 0 // AWH
-  /* TEST */
-  glTranslatef(translateX, translateY, 0.0f);
-  glScalef(scaleWidth/3.0f, scaleHeight/3.0f, 1.0f);
-  glEnableClientState(GL_VERTEX_ARRAY);
-  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-  glFrontFace(GL_CW);
-  glVertexPointer(3, GL_FLOAT, 0,mainTexCoords);
-  glTexCoordPointer(2, GL_FLOAT, 0, mainTexPosCoords);
-  glDrawArrays(GL_TRIANGLES,0,6);
-  glDisableClientState(GL_VERTEX_ARRAY);
-  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-#endif // AWH
 }
 
-void EGLBlitGBAGL(void *buf, float pauseX, float pauseY, float scaleX, float scaleY)
+void EGLBlitGBAGL(const void *buf, const float pauseX, 
+  const float pauseY, const float scaleX, const float scaleY)
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   EGLBlitPauseGL(buf, pauseX, pauseY, scaleX, scaleY);
 }
 
-void EGLBlitPauseGL(void *buf, float pauseX, float pauseY, float scaleX, float scaleY)
+void EGLBlitPauseGL(const void *buf, const float pauseX, 
+  const float pauseY, const float scaleX, const float scaleY)
 {
   glBindTexture(GL_TEXTURE_2D, textures[TEXTURE_PAUSE]);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 512, 512, 0,
@@ -236,8 +225,8 @@ void EGLSetupGL(void)
   glLoadIdentity();
 }
 
-void EGLSrcSizeGui(unsigned int width, 
-	unsigned int height, unsigned int smallGui)
+void EGLSrcSizeGui(const unsigned int width, 
+	const unsigned int height, const guiSize_t guiSize)
 {
   screenshotWidth = srcWidth = (float)width;
   screenshotHeight = srcHeight = (float)height;
@@ -255,7 +244,7 @@ void EGLSrcSizeGui(unsigned int width,
   else
     texToUse = TEXTURE_1024;
 
-  if (smallGui)
+  if (guiSize == GUI_SMALL)
   {
     translateX = -1.1f;
     translateY = 2.13f;
@@ -272,12 +261,12 @@ void EGLSrcSizeGui(unsigned int width,
   setupMainTexRefCoords();
 }
 
-void EGLSrcSize(unsigned int width, unsigned int height)
+void EGLSrcSize(const unsigned int width, const unsigned int height)
 {
-	EGLSrcSizeGui(width, height, 0);
+	EGLSrcSizeGui(width, height, GUI_NORMAL);
 }
 
-void EGLDestSize(unsigned int width, unsigned int height)
+void EGLDestSize(const unsigned int width, const unsigned int height)
 {
   destScreenWidth = (float)width;
   destScreenHeight = (float)height;

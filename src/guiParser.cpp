@@ -461,7 +461,7 @@ int loadGameConfig(void)
   currentGame = gameInfo;
 
   do {
-    int len = (int)fread(buf, 1, sizeof(buf), config);
+    size_t len = fread(buf, 1, sizeof(buf), config);
     done = len < sizeof(buf);
     if (XML_Parse(parser, buf, len, done) == XML_STATUS_ERROR) {
       fprintf(stderr,

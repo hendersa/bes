@@ -245,7 +245,7 @@ void renderPauseGui(const char *romname, int platform) {
 	SDL_BlitSurface(screenPause, &pos, pauseMenuSurface, NULL); 
 }
 
-uint32_t doPauseGui(const char *romname, int platform)
+uint32_t doPauseGui(const char *romname, const platformType_t platform)
 {
 	SDL_Rect menuPos = {0,0,0,0};
 	struct timeval startTime, endTime;

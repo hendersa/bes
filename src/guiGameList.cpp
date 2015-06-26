@@ -58,13 +58,12 @@ static SDL_Rect consoleIconRect[4] =
 static TTF_Font *itemListFont;
 static TTF_Font *headerTextFont;
 static SDL_Rect headerTextDstRect = {X_POS+30, Y_POS, 0, 0};
-static SDL_Color itemTextColor={255,255,255};
-static SDL_Color headerTextColor = {155, 152, 152};
+static SDL_Color itemTextColor={255,255,255,255};
+static SDL_Color headerTextColor = {155,152,152,255};
 static SDL_Rect overlay1DstRect={X_POS - 40, 36, 0, 0};
 static SDL_Rect itemTextDstRect={X_POS - 16/* ICONS +30*/, 0, 0, 0};
 static SDL_Rect lineRect={X_POS - 40, 0, 340, 1};
 static SDL_Rect trackRect={X_POS - 40 + 325, Y_POS + 37, 1, TRACK_HEIGHT}; 
-static int overlayFrame = 0;
 static SDL_Rect backgroundRect = {0, 80, 350, 480-80};
 static int currentIndex = 0; // Selected index in the list
 static int topIndex = 0; // Index displayed at the top of the list
@@ -79,7 +78,7 @@ static SDL_Rect thumbDstRect = {0, 0, 0, 0};
 
 void loadGameLists(void)
 {
-  int i = 0, x = 0, thumbHeight = 0;
+  int x = 0, thumbHeight = 0;
   SDL_Rect thumbSrcRect = {0, 0, 0, 0};
   gameInfo_t *currentNode;
   char buffer[128];
@@ -154,7 +153,7 @@ void renderThumb(SDL_Surface *screen) {
 }
 
 void renderGameList(SDL_Surface *screen) {
-  int i, vertical_offset, frameOffset;
+  int i, vertical_offset;
   SDL_Rect clip_rect = {0, 0, 0, itemTextDstRect.h};
 
   SDL_FillRect(screen, &backgroundRect, 0x0);
@@ -356,12 +355,13 @@ void shiftSelectedGameUp(int step)
   playOverlaySnd();
 }
 
-int currentSelectedGameIndex(void)
+uint32_t currentSelectedGameIndex(void)
 {
   return currentIndex;
 }
 
-int acceptButton(void)
+uint32_t acceptButton(void)
 {
   return (currentIndex == nextIndex);
 }
+

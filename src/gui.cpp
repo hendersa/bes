@@ -84,19 +84,8 @@ SDL_Surface *screen256, *screen512, *screen1024, *screenPause;
 static SDL_Surface *screen;
 SDL_Surface *fbscreen;
 
-#if defined(CAPE_LCD3)
-static SDL_Rect gradientRect = {0, 24, 0, 0};
-static SDL_Rect logoRect = {15, 2, 0, 0};
-#else
 static SDL_Rect gradientRect = {0, GRADIENT_Y_POS, 0, 0};
 static SDL_Rect logoRect = {55, 30, 0, 0};
-#endif /* CAPE_LCD3 */
-
-#if defined(CAPE_LCD3)
-static SDL_Rect backgroundRect = {0, 55, 320, 240-55};
-#else
-static SDL_Rect backgroundRect = {0, 80, 720, 480-80};
-#endif /* CAPE_LCD3 */
 
 #if defined(BEAGLEBONE_BLACK)
 static const char *joystickPath[NUM_JOYSTICKS*2] = {
@@ -112,8 +101,8 @@ static const char *joystickPath[NUM_JOYSTICKS] = {
   "/dev/input/by-path/pci-0000:02:00.0-usb-0:2.2:1.0-joystick" };
 #endif
 static SDL_Joystick *joystick[NUM_JOYSTICKS] = {NULL, NULL};
-int BESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
-int BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
+int32_t BESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
+uint32_t BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
  
 
 #define JOYSTICK_PLUGGED 1
@@ -362,13 +351,11 @@ void reinitVideo(void) {
   /* Turn on EGL */
   EGLInitialize();
   EGLDestSize(fbscreen->w, fbscreen->h);
-  EGLSrcSizeGui(720, 480, (guiSize == GUI_SMALL) );
+  EGLSrcSizeGui(720, 480, guiSize);
 }
 
 int doGuiSetup(void)
 {
-  int i;
-
   /* Initialize SDL */
   if ( SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0 ) {
     fprintf(stderr, "Couldn't initialize SDL: %s\n",SDL_GetError());
@@ -493,7 +480,7 @@ int doGui(void) {
 
   /* Get the screen set up again */
   EGLDestSize(fbscreen->w, fbscreen->h);
-  EGLSrcSizeGui(720, 480, (guiSize == GUI_SMALL) );
+  EGLSrcSizeGui(720, 480, guiSize);
   SDL_BlitSurface(gradient, NULL, screen, &gradientRect);
   SDL_BlitSurface(logo, NULL, screen, &logoRect);
 
@@ -526,8 +513,9 @@ int doGui(void) {
 
     EGLBlitGL(screen->pixels);
     EGLFlip();
-
+#if defined(BEAGLEBONE_BLACK)
     gpioEvents();
+#endif /* BEAGLEBONE_BLACK */
 
     /* Check for events */
     while ( SDL_PollEvent(&event) ) {

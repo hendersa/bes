@@ -112,7 +112,7 @@ void S9xParseInputConfig(ConfigFile &, int pass); // defined in sdlinput
 
 static long log2 (long);
 static void NSRTControllerSetup (void);
-static int make_snes9x_dirs (void);
+/* AWH static int make_snes9x_dirs (void); */
 
 void _splitpath (const char *path, char *drive, char *dir, char *fname, char *ext)
 {
@@ -378,7 +378,7 @@ fprintf(stderr, "AWH: section: '%s'\n", section.c_str());
 	for (ConfigFile::secvec_t::iterator c = sec.begin(); c != sec.end(); c++)
 		keymaps.push_back(*c);
 }
-
+#if 0 /* AWH */
 static int make_snes9x_dirs (void)
 {
 	if (strlen(s9x_base_dir) + 1 + sizeof(dirNames[0]) > PATH_MAX + 1)
@@ -398,7 +398,7 @@ static int make_snes9x_dirs (void)
 
 	return (0);
 }
-
+#endif /* AWH */
 const char * S9xGetDirectory (enum s9x_getdirtype dirtype)
 {
 	static char	s[PATH_MAX + 1];
@@ -799,9 +799,6 @@ static void sigbrkhandler (int)
 
 int main (int argc, char **argv)
 {
-	int guiReturn, i;
-	gameInfo_t *currentNode;
-
 #if 0 // AWH
 	if (argc < 2)
 		S9xUsage();
@@ -845,9 +842,6 @@ int main (int argc, char **argv)
 	CPU.Flags = 0;
 
 	S9xLoadConfigFiles(argv, argc);
-#if 0 // AWH     
-	rom_filename = S9xParseArgs(argv, argc);
-#else
 	//NSRTControllerSetup();
 
 	printf("Entering GUI...\n");
@@ -856,15 +850,7 @@ int main (int argc, char **argv)
 	loadGameConfig();
 	loadPauseGui();
 	printf("Done with GUI...\n");
-#if 1 // AWH
 	rom_filename = argv[argc-1];
-#else
-	currentNode = gameInfo->next;
-	for (i=0; i < guiReturn; i++)
-		currentNode = currentNode->next;
-        rom_filename = currentNode->romFile;
-#endif // AWH
-#endif // AWH
 
 	S9xLoadConfigFiles(argv, argc);
 

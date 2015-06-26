@@ -71,7 +71,7 @@ static uint32_t done = 0;
 static uint32_t frameCounter = 0, currentIndex = 0, nextIndex = 0;
 static SDL_Rect markerPos[3] = { {0,0,0,0},{0,0,0,0},{0,0,0,0} };
 
-static void renderGBAGui(const char *romname, int platform);
+static void renderGBAGui(void);
 static void shiftSelectedItemUp(void);
 static void shiftSelectedItemDown(void);
 static void incrementItemFrame(void);
