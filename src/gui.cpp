@@ -512,11 +512,16 @@ int doGui(void) {
     gettimeofday(&startTime, NULL);
 
     renderGameList(screen);
-    renderGameInfo(screen, currentSelectedGameIndex());
-    renderInstruct(screen, BESControllerPresent[0]);
-#ifdef CAPE_LCD3
-    renderVolume(screen);
+    if (guiSize != GUI_SMALL)
+    {
+      renderGameInfo(screen, currentSelectedGameIndex());
+      renderInstruct(screen, BESControllerPresent[0]);
+    }
+#if 0 /* CAPE_LCD3 */
+    else
+      renderVolume(screen);
 #endif /* CAPE_LCD3 */
+
     incrementGameListFrame();
 
     EGLBlitGL(screen->pixels);
@@ -605,7 +610,6 @@ int doGui(void) {
               break;
           } // End keydown switch
           break;
-//#endif /* CAPE_LCD3 */
         case SDL_QUIT:
 fprintf(stderr, "SDL_QUIT\n");
           guiQuit = 1;
@@ -648,20 +652,8 @@ fprintf(stderr, "SDL_QUIT\n");
       ((Uint16 *)(screen->pixels))[k] = r | g | b; 
     }
     SDL_UnlockSurface(screen);
-#if 0
-#if defined(BEAGLEBONE_BLACK)
-#if defined(CAPE_LCD3)
-    SDL_UpdateRect(screen, 0, 0, 320, 240);
-#else
-    SDL_UpdateRect(screen, 0, 0, 720, 480);
-#endif
-#else
-    SDL_UpdateRect(screen, 0, 0, 640, 480);
-#endif
-#else
     EGLBlitGL(screen->pixels);
     EGLFlip();
-#endif
   }
 
   if (audioAvailable) {
@@ -695,7 +687,7 @@ void shiftSelectedVolumeDown(void) {
   }
   changeVolume();
 }
-#ifdef CAPE_LCD3
+#if 0 /* CAPE_LCD3 */
 void renderVolume(SDL_Surface *surface) {
   SDL_Rect bar = {45, 170, 20, 30};
   if (!audioAvailable || volumeOverlayCount <= 0) return;
@@ -707,3 +699,4 @@ void renderVolume(SDL_Surface *surface) {
   volumeOverlayCount--;
 }
 #endif /* CAPE_LCD3 */
+

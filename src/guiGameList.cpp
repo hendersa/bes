@@ -40,25 +40,11 @@
 #include <SDL/SDL_ttf.h>
 #include "gui.h"
 
-#if !defined(CAPE_LCD3)
 #define X_POS 40
-#else
-#define X_POS 0
-#endif
 
-#if defined(CAPE_LCD3)
-#define Y_POS 15
-#define MAX_GAMES_PER_SCREEN 5
-#else
 #define Y_POS 95
 #define MAX_GAMES_PER_SCREEN 6
-#endif
-
-#if defined(CAPE_LCD3)
-#define TRACK_HEIGHT 187
-#else
 #define TRACK_HEIGHT 232
-#endif
 
 static SDL_Surface *selectOverlay = NULL;
 static SDL_Surface **itemText;
@@ -74,24 +60,12 @@ static TTF_Font *headerTextFont;
 static SDL_Rect headerTextDstRect = {X_POS+30, Y_POS, 0, 0};
 static SDL_Color itemTextColor={255,255,255};
 static SDL_Color headerTextColor = {155, 152, 152};
-#if defined(CAPE_LCD3)
-static SDL_Rect overlay1DstRect={X_POS, 36, 0, 0};
-#else
 static SDL_Rect overlay1DstRect={X_POS - 40, 36, 0, 0};
-#endif
 static SDL_Rect itemTextDstRect={X_POS - 16/* ICONS +30*/, 0, 0, 0};
 static SDL_Rect lineRect={X_POS - 40, 0, 340, 1};
-#if defined(CAPE_LCD3)
-static SDL_Rect trackRect={X_POS + 305, Y_POS + 37, 1, TRACK_HEIGHT};
-#else
 static SDL_Rect trackRect={X_POS - 40 + 325, Y_POS + 37, 1, TRACK_HEIGHT}; 
-#endif
 static int overlayFrame = 0;
-#if defined(CAPE_LCD3)
-static SDL_Rect backgroundRect = {0, 50, 320, 240-50};
-#else
 static SDL_Rect backgroundRect = {0, 80, 350, 480-80};
-#endif /* CAPE_LCD3 */
 static int currentIndex = 0; // Selected index in the list
 static int topIndex = 0; // Index displayed at the top of the list
 static int nextIndex = 0;
@@ -184,18 +158,18 @@ void renderGameList(SDL_Surface *screen) {
   SDL_Rect clip_rect = {0, 0, 0, itemTextDstRect.h};
 
   SDL_FillRect(screen, &backgroundRect, 0x0);
-#if !defined(CAPE_LCD3)
-  SDL_BlitSurface(headerText, NULL, screen, &headerTextDstRect);
-#endif /* CAPE_LCD3 */
-
+  if (guiSize != GUI_SMALL)
+    SDL_BlitSurface(headerText, NULL, screen, &headerTextDstRect);
   overlay1DstRect.x = X_POS - 40;
 
-#if !defined(CAPE_LCD3)
-  lineRect.y = Y_POS + 35;
-  SDL_FillRect(screen, &lineRect, 0xFFFF);
-  lineRect.y = Y_POS + 270;
-  SDL_FillRect(screen, &lineRect, 0xFFFF);
-#endif 
+  if (guiSize != GUI_SMALL)
+  {
+    lineRect.y = Y_POS + 35;
+    SDL_FillRect(screen, &lineRect, 0xFFFF);
+    lineRect.y = Y_POS + 270;
+    SDL_FillRect(screen, &lineRect, 0xFFFF);
+  }
+
   // First case: all games fit on a single screen
   if (totalGames <= MAX_GAMES_PER_SCREEN) {
     vertical_offset = (MAX_GAMES_PER_SCREEN-totalGames) * (selectOverlay->h - 8) / 2;
@@ -258,11 +232,6 @@ void renderGameList(SDL_Surface *screen) {
       SDL_BlitSurface(itemText[i + topIndex], NULL, itemListSurface, &itemListSurfaceRect);
     }
     itemListSurfaceRect.y = (Y_POS + 60-15);
-//#if defined(BEAGLEBONE_BLACK) && !defined(CAPE_LCD3)
-    //itemListSurfaceRect.x = 35;
-//#else
-    //itemListSurfaceRect.x = 15;
-//#endif
     SDL_BlitSurface(itemListSurface, &clip_rect, screen, &itemListSurfaceRect);
 
     overlay1DstRect.y = (Y_POS + 55-15);
@@ -274,11 +243,7 @@ void renderGameList(SDL_Surface *screen) {
     clip_rect.w = itemListSurface->w;
     clip_rect.h = (selectOverlay->h - 8) * MAX_GAMES_PER_SCREEN;
     clip_rect.y = shiftFrame + (selectOverlay->h - 8);
-//#if defined(BEAGLEBONE_BLACK) && !defined(CAPE_LCD3)
-    //itemListSurfaceRect.x = 35;
-//#else
-//    itemListSurfaceRect.x = 15;
-//#endif
+
     /* Render the entries */
     SDL_FillRect(itemListSurface, NULL, 0x0);
     for (i=0; i <= MAX_GAMES_PER_SCREEN; i++) {
@@ -333,36 +298,26 @@ void shiftSelectedGameDown(int step)
 
   /* Start the shifting process */
   /* Case 1: Moving down one item */
+  if (step == 1)
+  {
     nextIndex = currentIndex + 1;
     if (nextIndex > (totalGames-1))
       nextIndex = totalGames - 1;
-#if 0 /* AWH - Debug later */
-  /* Case 2: Jumping when only one screen of games */
-  } else if (totalGames <= MAX_GAMES_PER_SCREEN) {
-    nextIndex = currentIndex = totalGames - 1;
   }
-  /* Case 3: Jumping when next screen is full of games */
-  else if ((topIndex + (MAX_GAMES_PER_SCREEN * 2)) <= (totalGames - 1)) {
-    currentIndex += MAX_GAMES_PER_SCREEN;
-    nextIndex = currentIndex;
-    topIndex += MAX_GAMES_PER_SCREEN;
+  /* Case 2: Jumping a whole page of games */
+  else
+  {
+    /* Are we already on the last page of games? */
+    if (currentIndex >= ((totalGames - 1) / MAX_GAMES_PER_SCREEN) )
+      return;
+
+    /* Jump to next "top of the screen" index */
+    nextIndex = (currentIndex / MAX_GAMES_PER_SCREEN) *
+      MAX_GAMES_PER_SCREEN;
+    nextIndex += MAX_GAMES_PER_SCREEN;
+    currentIndex = nextIndex;
+    topIndex = currentIndex;
   }
-  /* Case 4: Jumping when on the last screen of games */
-  else if ((currentIndex + MAX_GAMES_PER_SCREEN) >= (totalGames -1)) {
-    topIndex = (totalGames - 1 - MAX_GAMES_PER_SCREEN);
-    currentIndex = totalGames - 1;
-    nextIndex = currentIndex;
-  }
-  /* Case 5: Jumping when next screen is partially full of games */
-  else {
-    topIndex = (totalGames - 1 - MAX_GAMES_PER_SCREEN);
-    currentIndex += MAX_GAMES_PER_SCREEN;
-    if (currentIndex > (totalGames - 1))
-      currentIndex = totalGames - 1;
-    nextIndex = currentIndex;
-  }
-#endif /* AWH */
-  //if (step > 1) shiftFrame = 50;
   playOverlaySnd();
 }
 
@@ -377,10 +332,27 @@ void shiftSelectedGameUp(int step)
     return;
 
   /* Start the shifting process */
-  nextIndex = currentIndex - 1;
-  if (nextIndex < 0)
-    nextIndex = 0;
-  //if (step > 1) shiftFrame = 50;
+  /* Case 1: Moving down one item */
+  if (step == 1)
+  {
+    nextIndex = currentIndex - 1;
+    if (nextIndex < 0)
+      nextIndex = 0;
+  }
+  /* Case 2: Jumping a whole page of games */
+  else
+  {
+    /* Are we already on the first page of games? */
+    if (currentIndex < MAX_GAMES_PER_SCREEN)
+      return;
+
+    /* Jump to previous "top of the screen" index */
+    nextIndex = (currentIndex / MAX_GAMES_PER_SCREEN) *
+      MAX_GAMES_PER_SCREEN;
+    nextIndex -= MAX_GAMES_PER_SCREEN;
+    currentIndex = nextIndex;
+    topIndex = currentIndex;
+  }
   playOverlaySnd();
 }
 
