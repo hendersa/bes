@@ -503,6 +503,7 @@ void m1sdr_SetCallback(void *fn)
 
 void m1sdr_PlayStart(void)
 {
+	if (!hw_present) return; /* AWH - BES */
 	if (lnxdrv_apimode == 0) 
 	{
 		SDL_PauseAudio(0);
@@ -512,6 +513,7 @@ void m1sdr_PlayStart(void)
 
 void m1sdr_PlayStop(void)
 {
+	if (!hw_present) return; /* AWH - BES */
 	if (lnxdrv_apimode == 0) 
 	{
 		SDL_PauseAudio(1);
@@ -521,6 +523,7 @@ void m1sdr_PlayStop(void)
 
 void m1sdr_FlushAudio(void)
 {
+	if (!hw_present) return; /* AWH - BES */
 	memset(samples, 0, nDSoundSegLen * 4);
 	if (lnxdrv_apimode == 2) 
 	{

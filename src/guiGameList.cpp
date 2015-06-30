@@ -307,7 +307,8 @@ void shiftSelectedGameDown(int step)
   else
   {
     /* Are we already on the last page of games? */
-    if (currentIndex >= ((totalGames - 1) / MAX_GAMES_PER_SCREEN) )
+    if (currentIndex >= (((totalGames - 1) / MAX_GAMES_PER_SCREEN) *
+      MAX_GAMES_PER_SCREEN) )
       return;
 
     /* Jump to next "top of the screen" index */

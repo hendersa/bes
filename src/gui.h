@@ -10,6 +10,11 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/* Set the resolution at or under which you need to use the
+  GUI for "small" screens */
+#define GUI_SMALL_WIDTH 480
+#define GUI_SMALL_HEIGHT 272
+
 #define TARGET_FPS 24
 #define TIME_PER_FRAME (1000000 / TARGET_FPS)
 

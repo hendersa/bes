@@ -283,19 +283,15 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 	nextIndex = currentIndex = frameCounter = 0;
 
 	/* Do slide-in animation */
+	dialogXPos = 1.75f;
+	dialogYPos = 0.0f;
 	if (guiSize == GUI_NORMAL)
-	{
-		dialogXPos = 1.5f;
-		dialogYPos = 0.0f;
 		scaleX = scaleY = 0.5f;
-	} else 
-	{
-		dialogXPos = 1.5f;
-		dialogYPos = 0.0f;
+	else 
 		scaleX = scaleY = 1.0f;
-	}
+
 	SDL_BlitSurface(pauseMenuSurface, NULL, screenPause, &menuPos);
-	for(i = 0; i < 30; i++)
+	for(i = 0; i < 35; i++)
 	{
 		gettimeofday(&startTime, NULL);
 		if (buffer)
@@ -488,7 +484,7 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 
 	/* Slide back out */
   SDL_BlitSurface(pauseMenuSurface, NULL, screenPause, &menuPos);
-  for(i = 0; i < 35; i++)
+  for(i = 0; i < 45; i++)
   {
     gettimeofday(&startTime, NULL);
     if (buffer)

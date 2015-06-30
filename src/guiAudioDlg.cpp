@@ -192,12 +192,15 @@ void doAudioDlg(void)
 	done = nextIndex = currentIndex = frameCounter = 0;
 
 	/* Do slide-in animation */
-	dialogXPos = 1.5f;
+	dialogXPos = 1.75f;
 	dialogYPos = 0.0f;
-     scaleX = 0.5f;
-     scaleY = 0.5f;
+	if (guiSize == GUI_NORMAL)
+		scaleX = scaleY = 0.5f;
+	else
+		scaleX = scaleY = 1.0f;
+
 	SDL_BlitSurface(audioDlgSurface, NULL, screenPause, &menuPos);
-	for(i = 0; i < 30; i++)
+	for(i = 0; i < 35; i++)
 	{
 		gettimeofday(&startTime, NULL);
 		EGLBlitGBAGL(screenPause->pixels, dialogXPos, dialogYPos, scaleX, scaleY);
@@ -265,7 +268,7 @@ void doAudioDlg(void)
 
 	/* Slide back out */
   SDL_BlitSurface(audioDlgSurface, NULL, screenPause, &menuPos);
-  for(i = 0; i < 35; i++)
+  for(i = 0; i < 45; i++)
   {
     gettimeofday(&startTime, NULL);
     EGLBlitGBAGL(screenPause->pixels, dialogXPos, dialogYPos, scaleX, scaleY);

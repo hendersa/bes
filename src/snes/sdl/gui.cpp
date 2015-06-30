@@ -309,6 +309,12 @@ int doGuiSetup(void)
     quit(2);
   }
 #endif /* PC_PLATFORM */
+  /* Determine the size of the GUI to use */
+  if ((fbscreen->w <= GUI_SMALL_WIDTH) || (fbscreen->h <= GUI_SMALL_HEIGHT))
+    guiSize = GUI_SMALL;
+  else
+    guiSize = GUI_NORMAL;
+
   screenPause = SDL_CreateRGBSurface(0, 512, 512,
     16, fbscreen->format->Rmask, fbscreen->format->Gmask,
     fbscreen->format->Bmask, fbscreen->format->Amask);

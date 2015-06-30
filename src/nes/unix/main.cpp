@@ -760,7 +760,7 @@ void ToggleFullscreen()
 	SetupVideo();
 
 	lnxdrv_apimode = sSettings->GetSndAPI();
-	if (lnxdrv_apimode == 0) 	// the SDL driver needs a harder restart
+	if (lnxdrv_apimode == 0)	// the SDL driver needs a harder restart
 	{
 		m1sdr_Exit();
 		m1sdr_Init(sSettings->GetRate());
@@ -1316,8 +1316,13 @@ int nes_main(const char *romname)
 				{
 					Rewinder(emulator).EnableSound(true);
 				}
-
-			m1sdr_TimeCheck();
+			if (audioAvailable) /* AWH - BES */
+				m1sdr_TimeCheck();
+			else
+			{
+				updateok = 1;
+				usleep(50);
+			}
 			if (updateok)
 			{
 				// AWH emulator.Execute( NULL, cNstSound, cNstPads);
@@ -1729,7 +1734,8 @@ void SetupSound()
 
 	lnxdrv_apimode = sSettings->GetSndAPI();
 
-	m1sdr_Init(sSettings->GetRate());
+	if (audioAvailable) /* AWH - BES */
+		m1sdr_Init(sSettings->GetRate());
 	m1sdr_SetCallback((void *)nst_do_frame);
 	m1sdr_PlayStart();
 

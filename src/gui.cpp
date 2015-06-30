@@ -20,11 +20,6 @@
 #include <linux/usbdevice_fs.h>
 #endif
 
-/* Set the resolution at or under which you need to use the
-  GUI for "small" screens */
-#define GUI_SMALL_WIDTH 480
-#define GUI_SMALL_HEIGHT 272
-
 pthread_t loadingThread;
 static void *loadingThreadFunc(void *);
 
@@ -381,6 +376,13 @@ int doGuiSetup(void)
     quit(2);
   }
 #endif /* PC_PLATFORM */
+
+  /* Determine the size of the GUI to use */
+  if ((fbscreen->w <= GUI_SMALL_WIDTH) || (fbscreen->h <= GUI_SMALL_HEIGHT))
+    guiSize = GUI_SMALL;
+  else
+    guiSize = GUI_NORMAL;
+
   screenPause = SDL_CreateRGBSurface(0, 512, 512,
     16, fbscreen->format->Rmask, fbscreen->format->Gmask,
     fbscreen->format->Bmask, fbscreen->format->Amask);
