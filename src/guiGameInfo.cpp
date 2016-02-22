@@ -56,10 +56,6 @@ static infoPanel_t *infoPanel;
 static SDL_Surface *genreHeader;
 static SDL_Surface *dateHeader;
 
-//static TTF_Font *textFont;
-//static TTF_Font *headerFont;
-//static TTF_Font *titleFont;
-
 static SDL_Color itemTextColor={255,255,255,255};
 static SDL_Color headerTextColor={192,192,192,255};
 
@@ -76,12 +72,8 @@ static SDL_Rect tempRect;
 void loadGameInfo(void)
 {
   int i = 0;
-  char tempBuf[128];
+  std::string tempBuf;
   gameInfo_t *currentNode = gameInfo;
-
-  //textFont = TTF_OpenFont("fonts/FreeSans.ttf", 16);
-  //headerFont = TTF_OpenFont("fonts/FreeSansBold.ttf", 12);
-  //titleFont = TTF_OpenFont("fonts/FreeSans.ttf", 30);
 
   genreHeader = TTF_RenderText_Blended(fontFSB12, "GENRE:", headerTextColor);
   dateHeader = TTF_RenderText_Blended(fontFSB12, "RELEASE DATE:", headerTextColor);
@@ -90,39 +82,49 @@ void loadGameInfo(void)
 
   /* Dynamic loading of game information */
   for (i=0; i < totalGames; i++) {
+    /* Move to the next node and render its text */
     currentNode = currentNode->next;
-    infoPanel[i].titleText = TTF_RenderText_Blended(fontFS30, currentNode->gameTitle, itemTextColor);
+    infoPanel[i].titleText = TTF_RenderText_Blended(fontFS30, currentNode->gameTitle.c_str(), itemTextColor);
 
+    /* Load the box image */
     if (currentNode->imageFile[0]) {
-      sprintf(tempBuf, BES_FILE_ROOT_DIR "/images/");
-      strcat(tempBuf, currentNode->imageFile);
+      tempBuf = std::string(BES_FILE_ROOT_DIR "/images/") + currentNode->imageFile;
     } else
-      sprintf(tempBuf, "gfx/blank_box.png");
-fprintf(stderr, "Image: '%s'\n", tempBuf);
-    infoPanel[i].box = IMG_Load(tempBuf);
-    if (currentNode->genreText[0][0]) {
-      strcpy(tempBuf, currentNode->genreText[0]);
-      if (currentNode->genreText[1][0]) {
-        strcat(tempBuf, "/");
-        strcat(tempBuf, currentNode->genreText[1]);
+      tempBuf = "gfx/blank_box.png";
+    //fprintf(stderr, "Image: '%s'\n", tempBuf.c_str());
+    infoPanel[i].box = IMG_Load(tempBuf.c_str());
+
+    /* Render the genre text */
+    if (!currentNode->genreText[0].empty()) {
+      tempBuf = currentNode->genreText[0];
+      if (!currentNode->genreText[1].empty()) {
+        tempBuf += "/";
+        tempBuf += currentNode->genreText[1];
       }
     } else
-      sprintf(tempBuf, "None Listed");
-     
-    infoPanel[i].genreText = TTF_RenderText_Blended(fontFS16, tempBuf, itemTextColor);
-    infoPanel[i].dateText = TTF_RenderText_Blended(fontFS16, currentNode->dateText, itemTextColor);
+      tempBuf = "None Listed";     
+    infoPanel[i].genreText = TTF_RenderText_Blended(fontFS16, tempBuf.c_str(), itemTextColor);
 
-    if (!currentNode->infoText[0][0] && !currentNode->infoText[1][0] &&
-      !currentNode->infoText[2][0] && !currentNode->infoText[3][0] &&
-      !currentNode->infoText[4][0])
+    /* Render the release date text */
+    infoPanel[i].dateText = TTF_RenderText_Blended(fontFS16, currentNode->dateText.c_str(), itemTextColor);
+
+    /* Render the description text */
+    if ( currentNode->infoText[0].empty() &&
+      currentNode->infoText[1].empty() &&
+      currentNode->infoText[2].empty() &&
+      currentNode->infoText[3].empty() &&
+      currentNode->infoText[4].empty() )
       infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, "No description available.", itemTextColor);
     else
-      infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[0], itemTextColor);
-    infoPanel[i].itemText[1] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[1], itemTextColor);
-    infoPanel[i].itemText[2] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[2], itemTextColor);
-    infoPanel[i].itemText[3] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[3], itemTextColor);
-    infoPanel[i].itemText[4] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[4], itemTextColor);
-  }
+    {
+      infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[0].c_str(), itemTextColor);
+      infoPanel[i].itemText[1] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[1].c_str(), itemTextColor);
+      infoPanel[i].itemText[2] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[2].c_str(), itemTextColor);
+      infoPanel[i].itemText[3] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[3].c_str(), itemTextColor);
+      infoPanel[i].itemText[4] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[4].c_str(), itemTextColor);
+    } /* Description if-else */
+
+  } /* Node for loop */
 }
 
 void renderGameInfo(SDL_Surface *screen, const uint32_t i) 

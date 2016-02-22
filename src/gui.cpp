@@ -68,7 +68,7 @@ static SDLKey gamepadAxisLastActive[2][2] = {
     {SDLK_UNKNOWN, SDLK_UNKNOWN}
 };
 
-int guiQuit;
+bool guiQuit;
 
 static int i, retVal, done;
 uint32_t BESPauseComboCurrent = 0;
@@ -112,9 +112,9 @@ static int menuPressDirectionStep = 0;
 int volumePressDirection = 0;
 
 //extern gameInfo_t *gameInfo;
-int totalGames;
-int audioAvailable = 1;
-int currentVolume = 64; // AWH32;
+uint16_t totalGames;
+bool audioAvailable = true;
+uint8_t currentVolume = 64; // AWH32;
 int volumeOverlayCount;
 
 void BESResetJoysticks(void) {
@@ -210,7 +210,7 @@ void BESCheckJoysticks(void) {
 }
 
 /* Turn gamepad events into keyboard events */
-void handleJoystickEvent(SDL_Event *event)
+void handleJoystickEvent(const SDL_Event *event)
 {
   SDL_Event keyEvent;
   int button = 0, axis = 0, gamepad = 0;
@@ -238,8 +238,6 @@ void handleJoystickEvent(SDL_Event *event)
                   BESPauseComboCurrent |= (1 << event->jbutton.button);
                 else
                   BESPauseComboCurrent &= (1 << event->jbutton.button);
-//fprintf(stderr, "BESPauseComboCurrent: %d BESPauseCombo: %d\n",
-//  BESPauseComboCurrent, BESPauseCombo);
                 if ((BESPauseComboCurrent & BESPauseCombo) == BESPauseCombo)
                 {
                   keyEvent.key.keysym.sym = SDLK_n;
@@ -247,7 +245,6 @@ void handleJoystickEvent(SDL_Event *event)
                   BESPauseComboCurrent = 0;
                 }
               }
-/* AWH */
               if (keyEvent.type == SDL_KEYDOWN)
                 keyEvent.key.state = SDL_PRESSED;
               SDL_PushEvent(&keyEvent);
@@ -321,7 +318,7 @@ void reinitVideo(void) {
 
   /* Set video mode */
 #if defined(PC_PLATFORM)
-  if ( (fbscreen = SDL_SetVideoMode(/*720, 480,*/320, 240, 16, 0)) == NULL ) {
+  if ( (fbscreen = SDL_SetVideoMode(720, 480, 16, 0)) == NULL ) {
     fprintf(stderr, "Couldn't set 720x480x16 video mode: %s\n",
       SDL_GetError());
     quit(2);
@@ -364,7 +361,7 @@ int doGuiSetup(void)
 
   /* Set video mode */
 #if defined(PC_PLATFORM)
-  if ( (fbscreen = SDL_SetVideoMode(/*720, 480,*/320, 240, 16, 0)) == NULL ) {
+  if ( (fbscreen = SDL_SetVideoMode(720, 480, 16, 0)) == NULL ) {
     fprintf(stderr, "Couldn't set 720x480x16 video mode: %s\n",
       SDL_GetError());
     quit(2);
@@ -398,7 +395,15 @@ int doGuiSetup(void)
   screen = screen1024;
 
   tex256buffer = calloc(1, 256*256*2);
+  if (!tex256buffer) {
+    fprintf(stderr, "\nERROR: Unable to allocate 256x256 texture buffer!\n");
+    exit(1);
+  }
   tex512buffer = calloc(1, 512*512*2);
+  if (!tex512buffer) {
+    fprintf(stderr, "\nERROR: Unable to allocate 512x512 texture buffer!\n");
+    exit(1);
+  }
 
   /* Shut off the mouse pointer */
   SDL_ShowCursor(SDL_DISABLE);
@@ -478,7 +483,7 @@ int doGui(void) {
   SDL_Event event;
   Uint16 pixel;
 
-  guiQuit = 0;
+  guiQuit = false;
 
   /* Get the screen set up again */
   EGLDestSize(fbscreen->w, fbscreen->h);
@@ -590,8 +595,8 @@ int doGui(void) {
               }
               break;
             case SDLK_ESCAPE:
-              guiQuit = 1;
-              done = 1;
+              guiQuit = true;
+              done = true;
               break;
             case SDLK_n:
               // AWH doPauseGui("TEST.ROM", PLATFORM_SNES);
@@ -602,7 +607,7 @@ int doGui(void) {
           break;
         case SDL_QUIT:
 fprintf(stderr, "SDL_QUIT\n");
-          guiQuit = 1;
+          guiQuit = true;
           done = 1;
           break;
         default:

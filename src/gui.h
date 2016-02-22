@@ -3,8 +3,8 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <string>
 #include "beagleboard.h"
-// AWH #include "nes/driver.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,9 +41,9 @@ struct SDL_Rect;
 union SDL_Event;
 extern SDL_Surface *screen1024, *screen512, *screen256, *screenPause;
 extern void *tex256buffer, *tex512buffer;
-extern int guiQuit;
+extern bool guiQuit;
 extern int texToUse;
-extern int inPauseGui;
+extern bool inPauseGui;
 extern float screenshotWidth;
 extern float screenshotHeight;
 extern uint32_t BESPauseComboCurrent;
@@ -86,7 +86,7 @@ extern void doAudioDlg(void);
 extern int32_t BESDeviceMap[NUM_JOYSTICKS];
 extern void BESResetJoysticks(void);
 extern void BESCheckJoysticks(void);
-extern void handleJoystickEvent(SDL_Event *event);
+extern void handleJoystickEvent(const SDL_Event *event);
 extern uint32_t BESControllerPresent[NUM_JOYSTICKS];
 extern uint32_t BESPauseCombo;
 
@@ -235,26 +235,26 @@ typedef enum {
 /* Eight buttons, one pause, and two axis */
 #define BUTTON_MAP_SIZE 11
 
-extern unsigned char BESButtonMap[NUM_PLAYERS][BUTTON_MAP_SIZE];
-extern unsigned char BESAxisMap[NUM_PLAYERS][2][2];
-extern unsigned char GPIOButtonMap[GPIO_MAP_SIZE];
+extern uint8_t BESButtonMap[NUM_PLAYERS][BUTTON_MAP_SIZE];
+extern uint8_t BESAxisMap[NUM_PLAYERS][2][2];
+extern uint8_t GPIOButtonMap[GPIO_MAP_SIZE];
 
 /* Linked list node for game information */
 typedef struct _gameInfo {
   /* The name of the game */
-  char gameTitle[GAME_TITLE_SIZE];
+  std::string gameTitle;
   /* Filename of the ROM image */
-  char romFile[ROM_FILE_SIZE];
+  std::string romFile;
   /* Filename of the image of the game's box */
-  char imageFile[IMAGE_FILE_SIZE];
+  std::string imageFile;
   /* Lines of text that describe the game */
-  char infoText[MAX_TEXT_LINES][INFO_TEXT_SIZE];
+  std::string infoText[MAX_TEXT_LINES];
   /* Four digit year the game was released */
-  char dateText[DATE_TEXT_SIZE];
+  std::string dateText;
   /* Short descriptive genre text */
-  char genreText[MAX_GENRE_TYPES][GENRE_TEXT_SIZE];
+  std::string genreText[MAX_GENRE_TYPES];
   /* Platform this game runs on */
-  int platform;
+  platformType_t platform;
   /* Link to next game in list */
   struct _gameInfo *next;
   /* Link to prev game in list */
@@ -262,22 +262,22 @@ typedef struct _gameInfo {
 } gameInfo_t;
 
 extern gameInfo_t *gameInfo;
-extern int totalGames;
-extern int currentPlatform;
+extern uint16_t totalGames;
+extern platformType_t currentPlatform;
 
-extern int audioAvailable;
+extern bool audioAvailable;
 
-extern int currentVolume;
+extern uint8_t currentVolume;
 extern int volumePressDirection;
 extern int volumeOverlayCount;
 
 extern void shiftSelectedVolumeUp(void);
 extern void shiftSelectedVolumeDown(void);
 
-extern int selectButtonNum;
-extern int startButtonNum;
+extern int8_t selectButtonNum;
+extern int8_t startButtonNum;
 
-extern int emuDone;
+extern bool emuDone;
 
 /* eglSetup.c */
 extern void EGLShutdown(void);
@@ -335,8 +335,7 @@ enum {
 
 /* Pause GUI */
 extern void loadPauseGui(void);
-extern uint32_t doPauseGui(const char *romname, 
-  const platformType_t platform);
+extern uint32_t doPauseGui(const char *romname, const platformType_t platform);
 enum {
   PAUSE_NONE = 0, /* No special pause activity */
   PAUSE_NEXT,  /* On the next pass through, pause */
@@ -344,8 +343,8 @@ enum {
   PAUSE_CACHE_NO_DRAW, /* Cache the texture, but don't flip */
   PAUSE_IN_DIALOG /* In the pause dialog already when caching */ 
 };
-extern void saveScreenshot(const char *romname);
-extern void loadScreenshot(const char *romname);
+extern void saveScreenshot(const std::string &romname);
+extern void loadScreenshot(const std::string &romname);
 extern int BESPauseState;
 
 /* VBAM emulator functions */

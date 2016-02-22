@@ -1,3 +1,22 @@
+# Binary
+bes
+
 # Compiled source
 *.o
+
+# Any test ROMs or save states
+games.xml
+src/games.xml
+srams/*
+roms/*
+
+# Temp files
+*.swp
+
+# Configure temp files
+src/config.info
+src/config.log
+src/config.status
+src/Makefile
+src/autom4te.cache
 

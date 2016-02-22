@@ -50,7 +50,7 @@ static SDL_Surface *selectOverlay = NULL;
 static SDL_Surface **itemText;
 static SDL_Surface *headerText;
 
-/* Consoles are SNES, NES, and GBA, GBC, in that order */
+/* Console icons are SNES, NES, GBA, and GBC, in that order */
 static SDL_Surface *consoleIcons = NULL;
 static SDL_Rect consoleIconRect[4] = 
   {{0,0,32,32}, {64,0,32,32}, {32,0,32,32}, {96,0,32,32}};
@@ -81,7 +81,7 @@ void loadGameLists(void)
   int x = 0, thumbHeight = 0;
   SDL_Rect thumbSrcRect = {0, 0, 0, 0};
   gameInfo_t *currentNode;
-  char buffer[128];
+  std::string buffer;
 
   /* Load our fonts and gfx */
   itemListFont = TTF_OpenFont("fonts/FreeSans.ttf", 25);
@@ -98,9 +98,9 @@ void loadGameLists(void)
   currentNode = gameInfo;
   for (x=0; x < totalGames; x++) {
     currentNode = currentNode->next;
-    strcpy(buffer, "      ");
-    strcat(buffer, currentNode->gameTitle);   
-    itemText[x] = TTF_RenderText_Blended(itemListFont, /*currentNode->gameTitle*/buffer, itemTextColor);
+    buffer = "      ";
+    buffer += currentNode->gameTitle;
+    itemText[x] = TTF_RenderText_Blended(itemListFont, buffer.c_str(), itemTextColor);
     SDL_BlitSurface(consoleIcons, &consoleIconRect[currentNode->platform - TAG_FIRST_PLATFORM], itemText[x], NULL);
   }
 

@@ -47,7 +47,7 @@ int main (int argc, char **argv)
 		currentNode = gameInfo->next;
 		for (i=0; i < guiReturn; i++)
 			currentNode = currentNode->next;
-		fprintf(stderr, "rom_filename: %s\n", currentNode->romFile);
+		fprintf(stderr, "rom_filename: %s\n", currentNode->romFile.c_str());
 
 		/* Clean out any events still in the queue */
 		while( SDL_PollEvent(&event) );
@@ -57,7 +57,7 @@ int main (int argc, char **argv)
 		switch(currentNode->platform)
 		{
 			case PLATFORM_SNES:
-				snes_main(currentNode->romFile);
+				snes_main(currentNode->romFile.c_str());
 				break;
 			case PLATFORM_GBA:
 				if (audioAvailable)
@@ -65,14 +65,14 @@ int main (int argc, char **argv)
 					gbaForceSettings = GBA_FORCE_FS_SYNC_AUDIO;
 				else
 					gbaForceSettings = GBA_FORCE_NO_FS_NO_AUDIO;
-				gba_main(currentNode->romFile);
+				gba_main(currentNode->romFile.c_str());
 				break;
 			case PLATFORM_GBC:
 				gbaForceSettings = GBC_FORCE;
-				gba_main(currentNode->romFile);
+				gba_main(currentNode->romFile.c_str());
 				break;
 			case PLATFORM_NES:
-				nes_main(currentNode->romFile);
+				nes_main(currentNode->romFile.c_str());
 				break;
 			default:
 				fprintf(stderr, "Unknown platform\n");

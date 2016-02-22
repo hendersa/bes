@@ -115,17 +115,17 @@ static TagInfo_t tagInfo[TAG_LAST] = {
 };
 
 /* Platform that the current game is for */
-int currentPlatform = PLATFORM_INVALID;
+platformType_t currentPlatform = PLATFORM_INVALID;
 int currentPlayer = PLAYER_INVALID;
 
 /* Flag for what tag we're currently in */
-static char inTagFlag[TAG_LAST];
+static int8_t inTagFlag[TAG_LAST];
 /* Flags for the fields that have defined in this gameInfo node */
-static char definedTagFlag[TAG_LAST];
+static int8_t definedTagFlag[TAG_LAST];
 
 /* Counters for how many of a tag have been used in this "game" tag */
-static int currentGenre = 0;
-static int currentText = 0;
+static uint8_t currentGenre = 0;
+static uint8_t currentText = 0;
 
 static void XMLCALL
 characterData(void *userData, const char *data, int len)
@@ -142,7 +142,6 @@ characterData(void *userData, const char *data, int len)
   for (i=0; i < len; i++)
   {
     workingBuf[workingIndex] = data[i];
-    //fprintf(stderr, "%d[%c]", workingIndex, data[i]);
     workingIndex++;
   }
 }
@@ -179,9 +178,13 @@ startElement(void *userData, const char *name, const char **atts)
       {
         case TAG_GAME:
           /* Allocate a new info node */
-          currentGame = (gameInfo_t *)calloc(1, sizeof(gameInfo_t));
+          currentGame = new gameInfo_t(); 
+          if (!currentGame) {
+            fprintf(stderr, "\nERROR: Unable to allocate new game node\n");
+            exit(1);
+          }
           /* Defaults */
-          strcpy(currentGame->dateText, DEFAULT_DATE_TEXT);
+          currentGame->dateText.assign(DEFAULT_DATE_TEXT);
           currentGame->platform = currentPlatform;
           currentGenre = 0;
           currentText = 0;
@@ -200,7 +203,7 @@ startElement(void *userData, const char *name, const char **atts)
         case TAG_NES:
         case TAG_GBC:
           fprintf(stderr, "\n<%s>", tagInfo[i].name);
-          currentPlatform = i;
+          currentPlatform = (platformType_t)i;
           break;
 
         case TAG_PLAYER1:
@@ -260,7 +263,8 @@ endElement(void *userData, const char *name)
               prevGame = gameInfo;
               while(prevGame->next)
               {
-                if (strcmp(prevGame->next->gameTitle, currentGame->gameTitle) > 0)
+                if (prevGame->next->gameTitle != currentGame->gameTitle)
+                //if (strcmp(prevGame->next->gameTitle, currentGame->gameTitle) > 0)
                   break;
                 prevGame = prevGame->next;
               }
@@ -290,8 +294,9 @@ endElement(void *userData, const char *name)
               fprintf(stderr, "ERROR: Title already defined for game\n");
               break;
             }
-fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
-            strncpy(currentGame->gameTitle, workingBuf, GAME_TITLE_SIZE - 1);
+            //fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
+            currentGame->gameTitle = workingBuf;
+            //strncpy(currentGame->gameTitle, workingBuf, GAME_TITLE_SIZE - 1);
             definedTagFlag[i] = 1;
             break;
 
@@ -301,8 +306,9 @@ fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
               fprintf(stderr, "ERROR: ROM already defined for game\n");
               break;
             }
-            fprintf(stderr, "Copying romFile '%s' into node\n", workingBuf);
-            strncpy(currentGame->romFile, workingBuf, ROM_FILE_SIZE - 1);
+            //fprintf(stderr, "Copying romFile '%s' into node\n", workingBuf);
+            currentGame->romFile = workingBuf;
+            //strncpy(currentGame->romFile, workingBuf, ROM_FILE_SIZE - 1);
             definedTagFlag[i] = 1;
             break;
 
@@ -312,8 +318,9 @@ fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
               fprintf(stderr, "ERROR: Image already defined for game\n");
               break;
             }
-            fprintf(stderr, "Copying imageFile '%s' into node\n", workingBuf);
-            strncpy(currentGame->imageFile, workingBuf, IMAGE_FILE_SIZE -1);
+            //fprintf(stderr, "Copying imageFile '%s' into node\n", workingBuf);
+            currentGame->imageFile.assign(workingBuf);
+            //strncpy(currentGame->imageFile, workingBuf, IMAGE_FILE_SIZE -1);
             definedTagFlag[i] = 1;
             break;
 
@@ -323,16 +330,17 @@ fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
               fprintf(stderr, "ERROR: Year already defined for game\n");
               break;
             }
-            fprintf(stderr, "Copying dateText '%s' into node\n", workingBuf);
-            strncpy(currentGame->dateText, workingBuf, DATE_TEXT_SIZE -1);
+            //fprintf(stderr, "Copying dateText '%s' into node\n", workingBuf);
+            currentGame->dateText.assign(workingBuf);
+            //strncpy(currentGame->dateText, workingBuf, DATE_TEXT_SIZE -1);
             definedTagFlag[i] = 1;
             break;
 
           case TAG_GENRE:
             if (currentGenre < MAX_GENRE_TYPES)
             {
-fprintf(stderr, "Copying genreText[%d] '%s' into node\n", currentGenre, workingBuf);
-              strncpy(currentGame->genreText[currentGenre], workingBuf, GENRE_TEXT_SIZE - 1);
+              //fprintf(stderr, "Copying genreText[%d] '%s' into node\n", currentGenre, workingBuf);
+              currentGame->genreText[currentGenre].assign(workingBuf);
               currentGenre++;
             }
             definedTagFlag[i] = 1;
@@ -341,8 +349,8 @@ fprintf(stderr, "Copying genreText[%d] '%s' into node\n", currentGenre, workingB
           case TAG_TEXT:
             if (currentText < MAX_TEXT_LINES)
             {
-fprintf(stderr, "Copying infoText[%d] '%s' into node\n", currentText, workingBuf);
-              strncpy(currentGame->infoText[currentText], workingBuf, INFO_TEXT_SIZE - 1);
+              //fprintf(stderr, "Copying infoText[%d] '%s' into node\n", currentText, workingBuf);
+              currentGame->infoText[currentText].assign(workingBuf);
               currentText++;
             }
             definedTagFlag[i] = 1;
@@ -456,8 +464,12 @@ int loadGameConfig(void)
   }
 
   /* Initialize the dummy head sentinel */
-  fprintf(stderr, "Creating sentinels\n");
-  gameInfo = (gameInfo_t *)calloc(1, sizeof(gameInfo_t)); 
+  //fprintf(stderr, "Creating sentinels\n");
+  gameInfo = new gameInfo_t;
+  if (!gameInfo) {
+    fprintf(stderr, "\nERROR: Unable to allocate sentinel node\n");
+    exit(1);
+  } 
   currentGame = gameInfo;
 
   do {
