@@ -64,9 +64,7 @@ static uint32_t done = 0;
 static uint32_t frameCounter = 0, currentIndex = 0, nextIndex = 0;
 static SDL_Rect markerPos[3] = { {0,0,0,0},{0,0,0,0},{0,0,0,0} };
 
-static void renderAudioDlg(void);
-
-void loadAudioDlg(void) {
+static void loadAudioDlg(void) {
 	SDL_Surface *tempSurface;
 	SDL_PixelFormat *format;
 
@@ -92,7 +90,7 @@ void loadAudioDlg(void) {
 		textColor);
 }
 
-void renderAudioDlg(void) {
+static void renderAudioDlg(void) {
 	SDL_Rect bgRect = {0,0,(PAUSE_GUI_WIDTH - 8), (PAUSE_GUI_HEIGHT-8)};
 	SDL_Rect pos = {0,0,0,0};
 	uint32_t i;

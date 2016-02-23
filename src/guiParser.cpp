@@ -43,13 +43,13 @@
 
 #define WORK_BUF_SIZE 256
 char workingBuf[WORK_BUF_SIZE];
-int workingIndex = 0;
+uint32_t workingIndex = 0;
 
-unsigned char BESButtonMap[NUM_PLAYERS][BUTTON_MAP_SIZE] = {
+uint8_t BESButtonMap[NUM_PLAYERS][BUTTON_MAP_SIZE] = {
 	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xff},
 	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xff} };
 
-unsigned char GPIOButtonMap[GPIO_MAP_SIZE] = { 0xFF, 0xFF, 0xFF,
+uint8_t GPIOButtonMap[GPIO_MAP_SIZE] = { 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 uint32_t BESPauseCombo = 0;
@@ -58,8 +58,8 @@ uint32_t BESPauseCombo = 0;
 gameInfo_t *gameInfo = NULL;
 
 /* Temp nodes used in game information linked list */
-gameInfo_t *prevGame = NULL;
-gameInfo_t *currentGame = NULL;
+static gameInfo_t *prevGame = NULL;
+static gameInfo_t *currentGame = NULL;
 
 typedef struct {
   const char *name; /* Name of the tag */
@@ -115,8 +115,8 @@ static TagInfo_t tagInfo[TAG_LAST] = {
 };
 
 /* Platform that the current game is for */
-platformType_t currentPlatform = PLATFORM_INVALID;
-int currentPlayer = PLAYER_INVALID;
+static platformType_t currentPlatform = PLATFORM_INVALID;
+static int32_t currentPlayer = PLAYER_INVALID;
 
 /* Flag for what tag we're currently in */
 static int8_t inTagFlag[TAG_LAST];
@@ -296,7 +296,6 @@ endElement(void *userData, const char *name)
             }
             //fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
             currentGame->gameTitle = workingBuf;
-            //strncpy(currentGame->gameTitle, workingBuf, GAME_TITLE_SIZE - 1);
             definedTagFlag[i] = 1;
             break;
 
@@ -308,7 +307,6 @@ endElement(void *userData, const char *name)
             }
             //fprintf(stderr, "Copying romFile '%s' into node\n", workingBuf);
             currentGame->romFile = workingBuf;
-            //strncpy(currentGame->romFile, workingBuf, ROM_FILE_SIZE - 1);
             definedTagFlag[i] = 1;
             break;
 
@@ -320,7 +318,6 @@ endElement(void *userData, const char *name)
             }
             //fprintf(stderr, "Copying imageFile '%s' into node\n", workingBuf);
             currentGame->imageFile.assign(workingBuf);
-            //strncpy(currentGame->imageFile, workingBuf, IMAGE_FILE_SIZE -1);
             definedTagFlag[i] = 1;
             break;
 
@@ -332,7 +329,6 @@ endElement(void *userData, const char *name)
             }
             //fprintf(stderr, "Copying dateText '%s' into node\n", workingBuf);
             currentGame->dateText.assign(workingBuf);
-            //strncpy(currentGame->dateText, workingBuf, DATE_TEXT_SIZE -1);
             definedTagFlag[i] = 1;
             break;
 
@@ -453,7 +449,7 @@ int loadGameConfig(void)
 
   config = fopen(BES_FILE_ROOT_DIR "/games.xml", "r");
   if (!config) {
-    fprintf(stderr, "Unable to open game configuration file games.xml\n");
+    fprintf(stderr, "\nERROR: Unable to open game configuration file games.xml\n");
     return 1;
   }
 
@@ -464,7 +460,6 @@ int loadGameConfig(void)
   }
 
   /* Initialize the dummy head sentinel */
-  //fprintf(stderr, "Creating sentinels\n");
   gameInfo = new gameInfo_t;
   if (!gameInfo) {
     fprintf(stderr, "\nERROR: Unable to allocate sentinel node\n");

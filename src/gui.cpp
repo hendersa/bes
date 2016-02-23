@@ -20,10 +20,12 @@
 #include <linux/usbdevice_fs.h>
 #endif
 
+#if !defined(BUILD_SNES)
 pthread_t loadingThread;
 static void *loadingThreadFunc(void *);
 
 #define GRADIENT_Y_POS 55
+#endif /* BUILD_SNES */
 
 /* Dialog info */
 TTF_Font *fontFSB12, *fontFSB16, *fontFSB25;
@@ -39,12 +41,17 @@ guiSize_t guiSize;
 
 /* Gamepad maps to keys: L, R, A, B, X, Y, Select, Start, Pause */
 static SDLKey gamepadButtonKeyMap[2][9] = {
-  {SDLK_a, SDLK_s, SDLK_z, SDLK_x, SDLK_UNKNOWN, 
-    SDLK_UNKNOWN, SDLK_BACKSPACE, SDLK_RETURN, SDLK_n},
+  {SDLK_a, SDLK_s, SDLK_z, SDLK_x,
+#if !defined(BUILD_SNES)
+    SDLK_UNKNOWN, SDLK_UNKNOWN,
+#else
+    SDLK_d, SDLK_c,
+#endif /* BUILD_SNES */ 
+    SDLK_BACKSPACE, SDLK_RETURN, SDLK_n},
   {SDLK_j, SDLK_k, SDLK_m, SDLK_COMMA, SDLK_l, 
     SDLK_SEMICOLON, SDLK_PERIOD, SDLK_SLASH, SDLK_n}
 };
-static SDLKey gamepadAxisKeyMap[2][2][2] = {
+static SDLKey gamepadAxisKeyMap[NUM_JOYSTICKS][2][2] = {
   /* Gamepad 0 */
   {
     /* Axis 0 (up/down) */
@@ -68,19 +75,20 @@ static SDLKey gamepadAxisLastActive[2][2] = {
     {SDLK_UNKNOWN, SDLK_UNKNOWN}
 };
 
-bool guiQuit;
-
 static int i, retVal, done;
 uint32_t BESPauseComboCurrent = 0;
 
+#if !defined(BUILD_SNES)
+bool guiQuit;
 static SDL_Surface *logo;
 static SDL_Surface *gradient;
-SDL_Surface *screen256, *screen512, *screen1024, *screenPause;
-static SDL_Surface *screen;
-SDL_Surface *fbscreen;
-
 static SDL_Rect gradientRect = {0, GRADIENT_Y_POS, 0, 0};
 static SDL_Rect logoRect = {55, 30, 0, 0};
+SDL_Surface *screen1024;
+#endif /* BUILD_SNES */
+SDL_Surface *screen256, *screen512, *screenPause;
+static SDL_Surface *screen;
+SDL_Surface *fbscreen;
 
 #if defined(BEAGLEBONE_BLACK)
 static const char *joystickPath[NUM_JOYSTICKS*2] = {
@@ -105,13 +113,14 @@ uint32_t BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
 
 /* Bitmask of which joysticks are plugged in (1) and which aren't (0) */
 static int joystickState = 0;
+#if !defined (BUILD_SNES)
 static int elapsedTime;
 static struct timeval startTime, endTime;
 static int menuPressDirection = 0;
 static int menuPressDirectionStep = 0;
 int volumePressDirection = 0;
+#endif /* BUILD_SNES */
 
-//extern gameInfo_t *gameInfo;
 uint16_t totalGames;
 bool audioAvailable = true;
 uint8_t currentVolume = 64; // AWH32;
@@ -301,7 +310,7 @@ static void quit(int rc)
   SDL_Quit();
   exit(rc);
 }
-
+#if !defined(BUILD_SNES)
 void shutdownVideo(void) {
 
   EGLShutdown();
@@ -345,6 +354,33 @@ void reinitVideo(void) {
   EGLDestSize(fbscreen->w, fbscreen->h);
   EGLSrcSizeGui(720, 480, guiSize);
 }
+#endif /* BUILD_SNES */
+
+static int loadFonts(void)
+{
+  dlgMarker = IMG_Load("gfx/pause_marker.png");
+
+  /* Load the fonts for the GUI and dialogs */
+  fontFSB12 = TTF_OpenFont("fonts/FreeSansBold.ttf", 12);
+  fontFSB16 = TTF_OpenFont("fonts/FreeSansBold.ttf", 16);
+  fontFSB25 = TTF_OpenFont("fonts/FreeSansBold.ttf", 25);
+  if (!fontFSB12 || !fontFSB16 || !fontFSB25)
+  {
+    fprintf(stderr, "Unable to load fonts/FreeSansBold.ttf");
+    return 1;
+  }
+  fontFS16 = TTF_OpenFont("fonts/FreeSans.ttf", 16);
+  fontFS20 = TTF_OpenFont("fonts/FreeSans.ttf", 20);
+  fontFS24 = TTF_OpenFont("fonts/FreeSans.ttf", 24);
+  fontFS25 = TTF_OpenFont("fonts/FreeSans.ttf", 25);
+  fontFS30 = TTF_OpenFont("fonts/FreeSans.ttf", 30);
+  if (!fontFS16 || !fontFS20 || !fontFS24 || !fontFS25 || !fontFS30)
+  {
+    fprintf(stderr, "Unable to load fonts/FreeSans.ttf");
+    return 1;
+  }
+  return 0;
+}
 
 int doGuiSetup(void)
 {
@@ -383,16 +419,20 @@ int doGuiSetup(void)
   screenPause = SDL_CreateRGBSurface(0, 512, 512,
     16, fbscreen->format->Rmask, fbscreen->format->Gmask,
     fbscreen->format->Bmask, fbscreen->format->Amask);
-  screen1024 = SDL_CreateRGBSurface(0, 1024, 1024, 
-    16, fbscreen->format->Rmask, fbscreen->format->Gmask, 
-    fbscreen->format->Bmask, fbscreen->format->Amask);
   screen512 = SDL_CreateRGBSurface(0, 512, 512,
     16, fbscreen->format->Rmask, fbscreen->format->Gmask,
     fbscreen->format->Bmask, fbscreen->format->Amask);
   screen256 = SDL_CreateRGBSurface(0, 256, 256,
     16, fbscreen->format->Rmask, fbscreen->format->Gmask,
     fbscreen->format->Bmask, fbscreen->format->Amask);
+#if !defined(BUILD_SNES)
+  screen1024 = SDL_CreateRGBSurface(0, 1024, 1024,
+    16, fbscreen->format->Rmask, fbscreen->format->Gmask,
+    fbscreen->format->Bmask, fbscreen->format->Amask);
   screen = screen1024;
+#else
+  screen = screen512;
+#endif /* BUILD_SNES */
 
   tex256buffer = calloc(1, 256*256*2);
   if (!tex256buffer) {
@@ -412,7 +452,11 @@ int doGuiSetup(void)
   EGLInitialize();
   EGLDestSize(fbscreen->w, fbscreen->h);
   /* Splash screen has to run in "normal" GUI size here */
+#if !defined(BUILD_SNES)
   EGLSrcSize(720, 480);
+#else
+  EGLSrcSize(512, 512);
+#endif /* BUILD_SNES */
 
   /* Init font engine */
   if(TTF_Init()==-1) {
@@ -420,9 +464,24 @@ int doGuiSetup(void)
     quit(2);
   }
 
+#if defined(BUILD_SNES)
+  /* Check for joysticks */
+  BESResetJoysticks();
+
+  /* Get SOMETHING on the screen ASAP */
+  done = 0;
+  SDL_FillRect(screen, NULL, 0x0);
+  SDL_UpdateRect(screen, 0, 0, 0, 0);
+  EGLBlitGL(screen->pixels);
+  EGLFlip();
+
+  gpioEvents();
+  loadFonts();
+#endif /* BUILD_SNES */
+
   return(0);
 }
-
+#if !defined(BUILD_SNES)
 void disableGuiAudio(void)
 {
   if (audioAvailable)
@@ -445,23 +504,8 @@ void *loadingThreadFunc(void *)
 {
   logo = IMG_Load("gfx/logo_trans.png");
   gradient = IMG_Load("gfx/gradient.png");
-  dlgMarker = IMG_Load("gfx/pause_marker.png");
 
-  /* Load the fonts for the GUI and dialogs */
-  fontFSB12 = TTF_OpenFont("fonts/FreeSansBold.ttf", 12);
-  fontFSB16 = TTF_OpenFont("fonts/FreeSansBold.ttf", 16);
-  fontFSB25 = TTF_OpenFont("fonts/FreeSansBold.ttf", 25);
-  if (!fontFSB12 || !fontFSB16 || !fontFSB25)
-    fprintf(stderr, "Unable to load fonts/FreeSansBold.ttf");
-
-  fontFS16 = TTF_OpenFont("fonts/FreeSans.ttf", 16);
-  fontFS20 = TTF_OpenFont("fonts/FreeSans.ttf", 20);
-  fontFS24 = TTF_OpenFont("fonts/FreeSans.ttf", 24);
-  fontFS25 = TTF_OpenFont("fonts/FreeSans.ttf", 25);
-  fontFS30 = TTF_OpenFont("fonts/FreeSans.ttf", 30);
-  if (!fontFS16 || !fontFS20 || !fontFS24 || !fontFS25 || !fontFS30)
-    fprintf(stderr, "Unable to load fonts/FreeSans.ttf");
-  
+  loadFonts();
   loadGameConfig();
   loadInstruct();
   loadGameLists();
@@ -694,4 +738,5 @@ void renderVolume(SDL_Surface *surface) {
   volumeOverlayCount--;
 }
 #endif /* CAPE_LCD3 */
+#endif /* BUILD_SNES */
 

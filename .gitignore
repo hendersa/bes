@@ -1,5 +1,6 @@
 # Binary
 bes
+snes9x-sdl
 
 # Compiled source
 *.o
@@ -7,8 +8,12 @@ bes
 # Any test ROMs or save states
 games.xml
 src/games.xml
-srams/*
-roms/*
+srams/gb/*
+srams/nes/*
+srams/snes/*
+roms/gb/*
+roms/nes/*
+roms/snes/*
 
 # Temp files
 *.swp
@@ -19,4 +24,8 @@ src/config.log
 src/config.status
 src/Makefile
 src/autom4te.cache
+src/snes/sdl/config.info
+src/snes/sdl/config.log
+src/snes/sdl/config.status
+src/snes/sdl/Makefile
 

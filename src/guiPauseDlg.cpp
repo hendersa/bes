@@ -47,18 +47,22 @@
 #include "beagleboard.h"
 #include "savepng.h"
 
-// AWH - Nestopia
 #if !defined (BUILD_SNES)
+/* NES: Nestopia */
 #include "nes/unix/auxio.h"
+/* GBA: VBAM */
+extern void sdlWriteState(int num);
+extern void sdlReadState(int num);
+extern bool systemPauseOnFrame(void);
 #else
-/* SNES9X stuff */
+/* SNES: SNES9X */
 #include "snes9x.h"
 #include "display.h"
 #include "snapshot.h"
 #include "gfx.h"
-#endif // AWH
+#endif /* BUILD_SNES */
 
-int BESPauseState = PAUSE_NONE;
+pauseState_t BESPauseState = PAUSE_NONE;
 
 void *tex256buffer = NULL;
 void *tex512buffer = NULL;
@@ -98,7 +102,6 @@ static const uint32_t yOffset = 130; // (480-220)/2;
 #endif /* CAPE_LCD3 */
 #endif
 static void renderPauseGui(const char *romname, int platform);
-//static void handleJoystickEvent(SDL_Event *event);
 static void shiftSelectedItemUp(void);
 static void shiftSelectedItemDown(void);
 static void incrementPauseItemFrame(void);
@@ -114,8 +117,10 @@ void loadPauseGui(void) {
 
 	/* Load the graphics for the pause menu */
 	tempSurface = IMG_Load("gfx/pausemenu_320x240.png");
-	if (!tempSurface)
-		fprintf(stderr, "Unable to load Pause GUI images\n");
+	if (!tempSurface) {
+		fprintf(stderr, "\nERROR: Unable to load Pause GUI images\n");
+		exit(1);
+	}
 	pauseGui = SDL_ConvertSurface(tempSurface, format, 0);
 	SDL_FreeSurface(tempSurface);
 
@@ -235,8 +240,6 @@ void renderPauseGui(const char *romname, int platform) {
 		SDL_BlitSurface(noSnapshotImage, NULL, screenPause, &pos);
 	}
 
-	//SDL_UpdateRect(screen, 0,0,0,0);
-
   /* Finally, now that we have rendered everything, cache a copy of it */
 	pos.x = pos.y = 0; 
 	pos.w = PAUSE_GUI_WIDTH; pos.h = PAUSE_GUI_HEIGHT;
@@ -252,13 +255,9 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 	uint64_t elapsedTime;
 	SDL_Event event;
 	uint32_t returnVal = 0;
-	//uint16_t *srcPixel, *dstPixel;
-	//uint32_t xPos, yPos;
 	uint8_t i;
 	float dialogXPos, dialogYPos, scaleX, scaleY;
 	void *buffer;
-	//SDL_Surface *tempSurface = NULL;
-	//char filepath[1024];
 	BESPauseComboCurrent = 0;
 
 	switch(texToUse)
@@ -387,23 +386,16 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 					case PLATFORM_NES:
 						BESPauseState = PAUSE_IN_DIALOG;
 						auxio_do_state_load();
-#if 0 // AWH - FCEUX
-						FCEUI_SelectState(0,0);
-						sprintf(filepath, "%s/%s/%s.fcs", BES_FILE_ROOT_DIR,
-							BES_NES_SAVE_DIR, romname);
-						FCEUI_LoadState(filepath, false);
-						FCEUI_Emulate(&gfx, &sound, &ssize, 0);
-						FCEUD_Update(gfx, sound, ssize);
-#endif // AWH
 						break;
 #else
 					case PLATFORM_SNES:
 					{
-						char temp[1024];
-						sprintf(temp, "%s/%s/snes/%s.000", BES_FILE_ROOT_DIR,
-							BES_SAVE_DIR, romname);
-						S9xUnfreezeGame(temp);
-						Settings.Paused = 1;
+						std::string temp;
+						temp = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/snes/"; 
+						temp += romname;
+						temp += ".000";
+						S9xUnfreezeGame(temp.c_str());
+						//Settings.Paused = 1;
 					}
 					break;
 #endif /* BUILD_SNES */
@@ -424,10 +416,6 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 
 				done = 0;
 			} else if (nextIndex == 2) { /* Save snapshot */
-#if 0 // SNES9X
-				saveSnapshot(romname);
-				//sync();
-#else
 				switch(platform) {
 #if !defined(BUILD_SNES)
 					case PLATFORM_GBA:
@@ -435,49 +423,38 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 						sdlWriteState(0);
 						break;
 					case PLATFORM_NES:
-#if 0 // AWH - FCEUX
-						sprintf(filepath, "%s/%s/%s.fcs", BES_FILE_ROOT_DIR, 
-							BES_NES_SAVE_DIR, romname);
-						FCEUI_SelectState(0,0);
-						FCEUI_SaveState(filepath, false);
-#endif // AWH
 						auxio_do_state_save();
 						break;
 #else
 					case PLATFORM_SNES:
-          {
+					{
 						int fdfile;
-						char temp[1024];
+						std::string temp;
 						/* SNES9X quicksave logic */
-						sprintf(temp, "%s/%s/snes/%s.000", BES_FILE_ROOT_DIR,
-							BES_SAVE_DIR, romname);
-						fprintf(stderr, "AWH: Save '%s'\n", temp);
-						S9xFreezeGame(temp);
+						temp = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/snes/";
+						temp += romname;
+						temp += ".000";
+						fprintf(stderr, "AWH: Save '%s'\n", temp.c_str());
+						S9xFreezeGame(temp.c_str());
 						fprintf(stderr, "After S9xFreezeGame()\n");
-						fdfile = open(temp, O_RDWR);
+						fdfile = open(temp.c_str(), O_RDWR);
 						if (fdfile > 0)
 						{
 							fsync(fdfile);
 							close(fdfile);
 						}
-          }
+					}
 					break;
 #endif /* BUILD_SNES */
 					default:
 						break;
 				}
-#endif // SNES9X	
-				saveScreenshot(romname, platform);			
+				saveScreenshot(romname, platform);
 				renderPauseGui(romname, platform);
 				done = 0;
 			} else if (nextIndex == 3) { /* Quit to menu */
 				returnVal = 1;
 			} else { /* Exit from pause screen */
-#if 0 // SNES9X
-				SDL_BlitSurface(currentScreen, NULL, screen, NULL);
-				SDL_UpdateRect(screen,0,0,0,0);
-				Settings.Paused = 0;
-#endif // SNES9X
 			}	
 		}
 	} /* End while loop */
@@ -502,47 +479,10 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
   /* Flush out any remaining events */
   while ( SDL_PollEvent(&event) );
 	fprintf(stderr, "Pause GUI return val: %d\n", returnVal);
-	// SNES9X Settings.Paused = 0;
   BESPauseComboCurrent = 0;
 	return returnVal;
 }
-#if 0 // AWH
-static void handleJoystickEvent(SDL_Event *event)
-{
-	switch(event->type) {
-		case SDL_JOYBUTTONDOWN:
-		case SDL_JOYBUTTONUP:
-			if ((BESDeviceMap[event->jbutton.which] == 0) && /* Gamepad 0 */
-				event->type == SDL_JOYBUTTONDOWN)
-			{
-				if (acceptButton()) {
-					if ((event->jbutton.button ==
-						BESButtonMap[0][TAG_SELECT-TAG_FIRST_CONTROL]) ||
-						(event->jbutton.button ==
-							BESButtonMap[0][TAG_START-TAG_FIRST_CONTROL]) )
-					{
-						done = 1;
-					} 
-				} /* acceptButton() check */
-			} /* Gamepad check */
-			break;
 
-		case SDL_JOYAXISMOTION:
-			if ((BESDeviceMap[event->jaxis.which] == 0) && /* Gamepad 0 */
-				(event->jaxis.axis)) { /* Axis 1 (up and down) */
-				if (event->jaxis.value < 0)
-					shiftSelectedItemUp();
-					//menuPressDirection = -1;
-				else if (event->jaxis.value > 0)
-					shiftSelectedItemDown();
-					//menuPressDirection = 1;
-				//else if (event->jaxis.value == 0)
-					//menuPressDirection = 0;
-			}
-			break;
-	}
-}
-#endif // AWH
 static void shiftSelectedItemDown(void)
 {
 	/* Already shifting to a new index? */
@@ -557,7 +497,6 @@ static void shiftSelectedItemDown(void)
 	/* Are we skipping the "load snapshot"? */
 	if ((nextIndex == 1) && !snapshotAvailable)
 		nextIndex++;
-	//playOverlaySnd();
 }
 
 static void shiftSelectedItemUp(void)
@@ -572,7 +511,6 @@ static void shiftSelectedItemUp(void)
 	nextIndex = currentIndex - 1;
 	if ((nextIndex == 1) && !snapshotAvailable)
 		nextIndex--;
-	//playOverlaySnd();
 }
 
 void incrementPauseItemFrame(void)
@@ -590,40 +528,31 @@ void incrementPauseItemFrame(void)
 
 /* controls.cpp */
 void loadScreenshot(const char *romname, int platform) {
-	char temp[1024];
+	std::string temp;
 	SDL_Surface *tempSurface;
 	SDL_PixelFormat *format = screenPause->format;
 
-#if 0 // AWH - SNES9X
-	/* This duplicates the quickload logic */
-	sprintf(temp, "%s/%s.000", S9xGetDirectory(SNAPSHOT_DIR), romname);
-	fprintf(stderr, "loadSnapshot(%s), '%s'\n", romname, temp);
-	S9xUnfreezeGame(temp);
-	Settings.Paused = 1;
-	sprintf(temp, "%s/%s.png", S9xGetDirectory(SNAPSHOT_DIR), romname);
-
-#endif // AWH
 	/* Load the screenshot associated with this snapshot */
+        temp = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/";
 	switch (platform)
 	{
 		case PLATFORM_GBA:
 		case PLATFORM_GBC:
-			sprintf(temp, "%s/%s/gb/%s.png", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
+			temp += "gb/";
 			break;
 		case PLATFORM_NES:
-			sprintf(temp, "%s/%s/nes/%s.png", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
+			temp += "nes/";
 			break;
 		case PLATFORM_SNES:
-			sprintf(temp, "%s/%s/snes/%s.png", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
+			temp += "snes/";
 			break;	
 	}
+	temp += romname;
+	temp += ".png";
 
 	if (snapshotImage) SDL_FreeSurface(snapshotImage);
-	fprintf(stderr, "loadSnapshot(%s), '%s'\n", romname, temp);
-	tempSurface = IMG_Load(temp);
+	fprintf(stderr, "loadSnapshot(%s), '%s'\n", romname, temp.c_str());
+	tempSurface = IMG_Load(temp.c_str());
 	if (tempSurface) {
 		snapshotImage = SDL_ConvertSurface(tempSurface, format, 0);
 		SDL_FreeSurface(tempSurface);
@@ -647,64 +576,35 @@ void loadScreenshot(const char *romname, int platform) {
 #endif /* BUILD_SNES */
 		} 
 	}
-	/* Replace the current screen background */
-	//SDL_BlitSurface(snapshotImage, NULL, screen, NULL);
-	/* Backup the snapshot image in case the user does an
-	  immediate save again for some reason */
-	// AWH SDL_BlitSurface(snapshotImage, NULL, currentScreen, NULL);
 	 	
 	/* Re-render the pause menu */
 	renderPauseGui(romname, platform);
 }
 
 void saveScreenshot(const char *romname, int platform) {
-	char imagePath[1024], dirPath[1024];
+	std::string imagePath, dirPath;
 	SDL_PixelFormat *format;
 	int fdfile;
 	SDL_Surface *tempSurface;
 
-#if 0 // AWH
-	/* SNES9X quicksave logic */
-	fddir = open(S9xGetDirectory(SNAPSHOT_DIR), 0, O_RDWR);
-	sprintf(temp, "%s/%s.000", S9xGetDirectory(SNAPSHOT_DIR), romname);
-	fprintf(stderr, "saveSnapshot(%s), '%s'\n", romname, temp);
-	S9xFreezeGame(temp);
-	fdfile = open(temp, 0, O_RDWR);
-	if (fdfile > 0)
+	dirPath = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/";
+	switch (platform)
 	{
-		fsync(fddir);
-		fsync(fdfile);
-		close(fdfile);
+		case PLATFORM_GBA:
+		case PLATFORM_GBC:
+			dirPath += "gb";
+			break;
+		case PLATFORM_NES:
+			dirPath += "nes";
+			break;
+		case PLATFORM_SNES:
+			dirPath += "snes";
+			break;
 	}
+	imagePath = dirPath + "/" + romname + ".png";
 
-	/* Write out the screenshot */
-	sprintf(temp, "%s/%s.png", S9xGetDirectory(SNAPSHOT_DIR), romname);
-#endif // AWH
-  switch (platform)
-  {
-    case PLATFORM_GBA:
-    case PLATFORM_GBC:
-      sprintf(dirPath, "%s/%s/gb", BES_FILE_ROOT_DIR,
-        BES_SAVE_DIR);
-      break;
-    case PLATFORM_NES:
-      sprintf(dirPath, "%s/%s/nes", BES_FILE_ROOT_DIR,
-        BES_SAVE_DIR);
-      break;
-    case PLATFORM_SNES:
-      sprintf(dirPath, "%s/%s/snes", BES_FILE_ROOT_DIR,
-        BES_SAVE_DIR);
-      break;
-  }
-  sprintf(imagePath, "%s/%s.png", dirPath, romname);
-
-	//sprintf(temp, "%s/%s/%s.png", BES_FILE_ROOT_DIR,
-		//BES_SCREENSHOT_DIR, romname);
-	fprintf(stderr, "saveScreenshot(%s), '%s'\n", romname, imagePath);
+	fprintf(stderr, "saveScreenshot(%s), '%s'\n", romname, imagePath.c_str());
 	if (snapshotImage) SDL_FreeSurface(snapshotImage);
-	/*snapshotImage = SDL_CreateRGBSurface(0, (int)screenshotWidth, 
-		(int)screenshotHeight, 32, 0xFF0000, 0xFF00, 
-		0xFF, 0xFF000000);*/
 	format = screen512->format;
 	switch(texToUse) {
 		case TEXTURE_256:
@@ -728,98 +628,99 @@ void saveScreenshot(const char *romname, int platform) {
 			break;
 	}
 
-	//SDL_BlitSurface(currentScreen, NULL, snapshotImage, NULL);
 	if (snapshotImage)
-		SDL_SavePNG(snapshotImage, imagePath);
-	fdfile = open(imagePath, 0, O_RDWR);
+		SDL_SavePNG(snapshotImage, imagePath.c_str());
+	fdfile = open(imagePath.c_str(), 0, O_RDWR);
 	if (fdfile > 0)
 	{
 		fsync(fdfile);
 		close(fdfile);
-		fdfile = open(dirPath, O_RDWR);
+		fdfile = open(dirPath.c_str(), O_RDWR);
 		fsync(fdfile);
 		close(fdfile);
 	}
-#if 0 // AWH - SNES9X logic
-	checkForSnapshot(romname);
-#endif // AWH
 }
 
 void checkForSnapshot(const char *romname, int platform)
 {
 	struct stat fileinfo;
-	char temp[1024];
+	std::string temp;
 	uint32_t dstRow, dstCol;
 	uint16_t *srcPixel, *dstPixel;
 	float xStep, yStep;
+	size_t stringSize;
 	SDL_Surface *tempSurface;
-	//int imageSnapshotAvailable = 1;
 
 	snapshotAvailable = 1;
 	/* Check for a ROM snapshot */
+	temp = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/";
 	switch (platform)
 	{
 		case PLATFORM_SNES:
-			sprintf(temp, "%s/%s/snes/%s.000", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
+			temp += "snes/";
+			temp += romname; 
+			temp += ".000";
 			break;
 		case PLATFORM_GBA:
 		case PLATFORM_GBC:
-			sprintf(temp, "%s/%s/gb/%s1.sgm", BES_FILE_ROOT_DIR, 
-				BES_SAVE_DIR, romname);
+			temp += "gb/";
+			temp += romname;
+			temp += "1.sgm";
 			break;
 		case PLATFORM_NES:
-			sprintf(temp, "%s/%s/nes/%s", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
-			fprintf(stderr, "temp1: '%s'\n", temp);
-			temp[strlen(temp)-4] = '\0';
-			fprintf(stderr, "temp2: '%s'\n", temp);
-			strcat(temp, ".nst");
-			fprintf(stderr, "temp3: '%s'\n", temp);
+			temp += "nes/";
+			temp += romname;
+			stringSize = temp.length();
+			temp.resize(stringSize - 4);
+			temp += ".nst";
+			///sprintf(temp, "%s/%s/nes/%s", BES_FILE_ROOT_DIR,
+			//	BES_SAVE_DIR, romname);
+			//fprintf(stderr, "temp1: '%s'\n", temp);
+			//temp[strlen(temp)-4] = '\0';
+			//fprintf(stderr, "temp2: '%s'\n", temp);
+			//strcat(temp, ".nst");
+			//fprintf(stderr, "temp3: '%s'\n", temp);
 			break;
 		default:
 			snapshotAvailable = 0;
 	}
-	if (stat(temp, &fileinfo))
+	if (stat(temp.c_str(), &fileinfo))
 	{
-		fprintf(stderr, "Error stat-ing snapshot (ROM) '%s'\n", temp);
+		fprintf(stderr, "Error stat-ing snapshot (ROM) '%s'\n", temp.c_str());
 		snapshotAvailable = 0;
 		return;			
 	}
 
 	/* Check for a screen snapshot */
+	temp = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/";
 	switch(platform) {
 		case PLATFORM_SNES:
-			//sprintf(temp, "%s/%s.png", S9xGetDirectory(SNAPSHOT_DIR), romname);
-			sprintf(temp, "%s/%s/snes/%s.png", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
+			temp += "snes/";
 			break;
 		case PLATFORM_GBA:
 		case PLATFORM_GBC:
-			sprintf(temp, "%s/%s/gb/%s.png", BES_FILE_ROOT_DIR,
-				BES_SAVE_DIR, romname);
+			temp += "gb/";
 			break;
 		case PLATFORM_NES:
-			sprintf(temp, "%s/%s/nes/%s.png", BES_FILE_ROOT_DIR, 
-				BES_SAVE_DIR, romname);
+			temp += "nes/";
 			break;
 		default:
 			snapshotAvailable = 0;
 			return;
 	}
+	temp += romname;
+	temp += ".png";
 
-	if (stat(temp, &fileinfo))
+	if (stat(temp.c_str(), &fileinfo))
 	{
-		fprintf(stderr, "Error stat-ing snapshot (image): '%s'\n", temp);
-		//imageSnapshotAvailable = 0;
+		fprintf(stderr, "Error stat-ing snapshot (image): '%s'\n", temp.c_str());
 	} else {
 		/* Try to load the screen snapshot */
 		if (snapshotImage) SDL_FreeSurface(snapshotImage);
-		tempSurface = IMG_Load(temp);
+		tempSurface = IMG_Load(temp.c_str());
 		if (!tempSurface)
 		{
 			fprintf(stderr, "Error loading snapshot (image)\n");
-			//snapshotAvailable = 0;
 			return;
 		}
 		snapshotImage = SDL_ConvertSurface(tempSurface, screen512->format, 0);
@@ -835,12 +736,6 @@ void checkForSnapshot(const char *romname, int platform)
 			srcPixel = (uint16_t *)snapshotImage->pixels;
 			srcPixel += (int)(dstRow * yStep) * 
 				(snapshotImage->pitch / 2); 
-#if 0 // AWH
-			if (snapshotImage->w == 720)
-				srcPixel += 40;
-			else if (snapshotImage->w == 320)
-				srcPixel += 32;
-#endif // AWH
 			dstPixel = (uint16_t *)tinySnapshotImage->pixels;
 			dstPixel += (dstRow * tinySnapshotImage->pitch / 2);
 		           

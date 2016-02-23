@@ -40,7 +40,6 @@ struct SDL_Color;
 struct SDL_Rect;
 union SDL_Event;
 extern SDL_Surface *screen1024, *screen512, *screen256, *screenPause;
-extern void *tex256buffer, *tex512buffer;
 extern bool guiQuit;
 extern int texToUse;
 extern bool inPauseGui;
@@ -79,7 +78,7 @@ extern guiSize_t guiSize;
 #define PAUSE_GUI_WIDTH 300
 #define PAUSE_GUI_HEIGHT 220
 
-/* No audio dialog */
+/* guiAudioDialog.cpp */
 extern void doAudioDlg(void);
 
 /* Map of js0, js1, etc. to the proper joystick (-1 if no joystick) */
@@ -92,33 +91,43 @@ extern uint32_t BESPauseCombo;
 
 extern int doGuiSetup(void);
 extern int doGui(void);
-extern void loadGameInfo(void);
-extern void loadGameLists(void);
-extern void loadInstruct(void);
-extern void loadAudio(void);
 
-/* GPIO */
+/* gpio.cpp */
 /* Four axis buttons, eight controller buttons, one pause */
 #define GPIO_MAP_SIZE 13
 extern uint32_t gpioPinSetup(void);
 extern void gpioEvents(void);
 
-/* guiParser.c */
+/* guiParser.cpp */
 extern int loadGameConfig(void);
 
-extern void renderInstruct(SDL_Surface *screen, 
-  const uint32_t gamepadPresent);
+/* guiGameList.cpp */
+extern void loadGameLists(void);
 extern void renderGameList(SDL_Surface *screen);
-extern void renderGameInfo(SDL_Surface *screen, const uint32_t i);
-#if defined (CAPE_LCD3)
-extern void renderVolume(const SDL_Surface *surface);
-#endif /* CAPE_LCD3 */
 extern uint32_t currentSelectedGameIndex(void);
 extern void incrementGameListFrame(void);
 extern void shiftSelectedGameUp(const int step);
 extern void shiftSelectedGameDown(const int step);
+extern uint32_t acceptButton(void);
+
+/* guiGamepad.cpp */
+extern void loadInstruct(void);
+extern void renderInstruct(SDL_Surface *screen, const uint32_t gamepadPresent);
+
+/* guiGameInfo.cpp */
+extern void loadGameInfo(void);
+extern void renderGameInfo(SDL_Surface *screen, const uint32_t i);
+
+/* gui.cpp */
+#if defined (CAPE_LCD3)
+extern void renderVolume(const SDL_Surface *surface);
+#endif /* CAPE_LCD3 */
 extern void enableGuiAudio(void);
 extern void disableGuiAudio(void);
+extern bool audioAvailable;
+
+/* guiAudio.cpp */
+extern void loadAudio(void);
 extern void initAudio(void);
 extern void startAudio(void);
 extern void fadeAudio(void);
@@ -127,29 +136,11 @@ extern void playOverlaySnd(void);
 extern void playTeleSnd(void);
 extern void playCoinSnd(void);
 extern void changeVolume(void);
-extern uint32_t acceptButton(void);
  
 #define DEFAULT_BOX_IMAGE "box_image.png"
 #define DEFAULT_DATE_TEXT "19XX"
 #define MAX_GENRE_TYPES 2
 #define MAX_TEXT_LINES 5
-
-#define GAME_TITLE_SIZE 64
-#define ROM_FILE_SIZE 128
-#define IMAGE_FILE_SIZE 128
-#define INFO_TEXT_SIZE 64
-#define DATE_TEXT_SIZE 5
-#define GENRE_TEXT_SIZE 32
-
-/* Snapshot load screen */
-enum {
-  /* No snapshot for this game */
-  SNAPSHOT_LOAD_NONE = 0,
-  /* Snapshot available */
-  SNAPSHOT_LOAD_SKIP,
-  SNAPSHOT_LOAD_RESTORE,
-  SNAPSHOT_LOAD_DELETE
-};
 
 enum {
   PLAYER_INVALID = -1,
@@ -232,9 +223,10 @@ typedef enum {
   NUM_PLATFORMS
 } platformType_t;
 
+/* guiParser.cpp */
+extern int loadGameConfig(void);
 /* Eight buttons, one pause, and two axis */
 #define BUTTON_MAP_SIZE 11
-
 extern uint8_t BESButtonMap[NUM_PLAYERS][BUTTON_MAP_SIZE];
 extern uint8_t BESAxisMap[NUM_PLAYERS][2][2];
 extern uint8_t GPIOButtonMap[GPIO_MAP_SIZE];
@@ -263,9 +255,6 @@ typedef struct _gameInfo {
 
 extern gameInfo_t *gameInfo;
 extern uint16_t totalGames;
-extern platformType_t currentPlatform;
-
-extern bool audioAvailable;
 
 extern uint8_t currentVolume;
 extern int volumePressDirection;
@@ -276,8 +265,6 @@ extern void shiftSelectedVolumeDown(void);
 
 extern int8_t selectButtonNum;
 extern int8_t startButtonNum;
-
-extern bool emuDone;
 
 /* eglSetup.c */
 extern void EGLShutdown(void);
@@ -333,23 +320,18 @@ enum {
   GBC_FORCE
 };
 
-/* Pause GUI */
+/* guiPauseDlg.cpp */
 extern void loadPauseGui(void);
 extern uint32_t doPauseGui(const char *romname, const platformType_t platform);
-enum {
+typedef enum {
   PAUSE_NONE = 0, /* No special pause activity */
   PAUSE_NEXT,  /* On the next pass through, pause */
   PAUSE_CACHE, /* Cache the texture, then switch to pause next */
   PAUSE_CACHE_NO_DRAW, /* Cache the texture, but don't flip */
   PAUSE_IN_DIALOG /* In the pause dialog already when caching */ 
-};
-extern void saveScreenshot(const std::string &romname);
-extern void loadScreenshot(const std::string &romname);
-extern int BESPauseState;
+} pauseState_t;
+extern pauseState_t BESPauseState;
+extern void *tex256buffer, *tex512buffer;
 
-/* VBAM emulator functions */
-extern void sdlWriteState(int num);
-extern void sdlReadState(int num);
-extern bool systemPauseOnFrame(void);
 #endif /* __GUI_H__ */
 

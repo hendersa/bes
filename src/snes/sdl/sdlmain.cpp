@@ -610,7 +610,7 @@ void S9xAutoSaveSRAM (void)
 	Memory.SaveSRAM(S9xGetFilename(".srm", SRAM_DIR));
 #else
 	char temp[1024];
-	sprintf(temp, "%s/%s/snes/%s.000", BES_FILE_ROOT_DIR,
+	sprintf(temp, "%s/%s/snes/%s.srm", BES_FILE_ROOT_DIR,
 		BES_SRAM_DIR, rom_filename);
 	Memory.SaveSRAM(temp);
 #endif // BeagleSNES
@@ -966,7 +966,8 @@ fprintf(stderr, "AWH: ROM: '%s'\n", s);
 	S9xLoadCheatFile(S9xGetFilename(".cht", CHEAT_DIR));
 #else
 	snprintf(s, PATH_MAX+1, "%s/%s/snes/%s.srm", BES_FILE_ROOT_DIR,
-		BES_SRAM_DIR, fname);
+		BES_SRAM_DIR, rom_filename);
+	fprintf(stderr, "Loading SRAM (%s)\n", s);
 	Memory.LoadSRAM(s);
 #endif // AWH
 	CPU.Flags = saved_flags;

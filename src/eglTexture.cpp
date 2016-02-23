@@ -77,7 +77,7 @@ static void setupMainTexCoords(void)
   mainTexCoords[17] = 0.0f;
 }
 
-void setupMainTexRefCoords(void)
+static void setupMainTexRefCoords(void)
 {
   float left, right, top, bottom;
   int texSize = 256 << texToUse;
@@ -100,7 +100,7 @@ void setupMainTexRefCoords(void)
   mainTexPosCoords[11] = top;
 }
 
-void setupPauseTexRefCoords(void)
+static void setupPauseTexRefCoords(void)
 {
   float left, right, top, bottom;
   left = -1.0f * 0.0f; //(PAUSE_GUI_WIDTH / 512.0f);
