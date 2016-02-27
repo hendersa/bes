@@ -178,7 +178,7 @@ startElement(void *userData, const char *name, const char **atts)
       {
         case TAG_GAME:
           /* Allocate a new info node */
-          currentGame = new gameInfo_t(); 
+          currentGame = new gameInfo_t; 
           if (!currentGame) {
             fprintf(stderr, "\nERROR: Unable to allocate new game node\n");
             exit(1);
@@ -251,7 +251,7 @@ endElement(void *userData, const char *name)
               fprintf(stderr, "ERROR: Found </game> tag in incorrect place\n");
               if (currentGame)
               { 
-                free(currentGame);
+                delete currentGame;
                 currentGame = NULL;
               }
               break;
@@ -264,7 +264,6 @@ endElement(void *userData, const char *name)
               while(prevGame->next)
               {
                 if (prevGame->next->gameTitle != currentGame->gameTitle)
-                //if (strcmp(prevGame->next->gameTitle, currentGame->gameTitle) > 0)
                   break;
                 prevGame = prevGame->next;
               }
@@ -276,7 +275,7 @@ endElement(void *userData, const char *name)
               fprintf(stderr, "ERROR: Missing game title or rom filename\n");
               if (currentGame)
               {
-                free(currentGame);
+                delete currentGame;
                 currentGame = NULL;
               }
             }
@@ -327,7 +326,6 @@ endElement(void *userData, const char *name)
               fprintf(stderr, "ERROR: Year already defined for game\n");
               break;
             }
-            //fprintf(stderr, "Copying dateText '%s' into node\n", workingBuf);
             currentGame->dateText.assign(workingBuf);
             definedTagFlag[i] = 1;
             break;
@@ -335,7 +333,6 @@ endElement(void *userData, const char *name)
           case TAG_GENRE:
             if (currentGenre < MAX_GENRE_TYPES)
             {
-              //fprintf(stderr, "Copying genreText[%d] '%s' into node\n", currentGenre, workingBuf);
               currentGame->genreText[currentGenre].assign(workingBuf);
               currentGenre++;
             }
@@ -345,7 +342,6 @@ endElement(void *userData, const char *name)
           case TAG_TEXT:
             if (currentText < MAX_TEXT_LINES)
             {
-              //fprintf(stderr, "Copying infoText[%d] '%s' into node\n", currentText, workingBuf);
               currentGame->infoText[currentText].assign(workingBuf);
               currentText++;
             }
@@ -439,6 +435,7 @@ int loadGameConfig(void)
   XML_Parser parser = XML_ParserCreate(NULL);
   int done, i, depth = 0;
   FILE *config = NULL;
+  gameInfo_t *tail = NULL;
 
   gameInfo = NULL;
   totalGames = 0;
@@ -459,10 +456,11 @@ int loadGameConfig(void)
     definedTagFlag[i] = 0;
   }
 
-  /* Initialize the dummy head sentinel */
+  /* Initialize the dummy head/tail sentinels */
   gameInfo = new gameInfo_t;
-  if (!gameInfo) {
-    fprintf(stderr, "\nERROR: Unable to allocate sentinel node\n");
+  tail = new gameInfo_t;
+  if (!gameInfo || !tail) {
+    fprintf(stderr, "\nERROR: Unable to allocate sentinel nodes\n");
     exit(1);
   } 
   currentGame = gameInfo;
@@ -476,11 +474,25 @@ int loadGameConfig(void)
               XML_ErrorString(XML_GetErrorCode(parser)),
               XML_GetCurrentLineNumber(parser));
       fclose(config);
+
+      /* Add a tail sentinel node */
+      currentGame = gameInfo;
+      while (currentGame->next)
+        currentGame = currentGame->next;
+      currentGame->next = tail;
+      
       return 1;
     }
   } while (!done);
   XML_ParserFree(parser);
   fclose(config);
+
+  /* Add a tail sentinel node */
+  currentGame = gameInfo;
+  while(currentGame->next)
+    currentGame = currentGame->next;
+  currentGame->next = tail;
+
   return 0;
 }
 

@@ -15,7 +15,7 @@ extern "C" {
 #define GUI_SMALL_WIDTH 480
 #define GUI_SMALL_HEIGHT 272
 
-#define TARGET_FPS 24
+#define TARGET_FPS 60
 #define TIME_PER_FRAME (1000000 / TARGET_FPS)
 
 #if defined(BEAGLEBONE_BLACK)
@@ -105,7 +105,7 @@ extern int loadGameConfig(void);
 extern void loadGameLists(void);
 extern void renderGameList(SDL_Surface *screen);
 extern uint32_t currentSelectedGameIndex(void);
-extern void incrementGameListFrame(void);
+extern void incrementGameListFrame(const uint8_t frames);
 extern void shiftSelectedGameUp(const int step);
 extern void shiftSelectedGameDown(const int step);
 extern uint32_t acceptButton(void);

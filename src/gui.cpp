@@ -526,6 +526,7 @@ int doGui(void) {
   int i, k, r, g, b;
   SDL_Event event;
   Uint16 pixel;
+  uint8_t frames;
 
   guiQuit = false;
 
@@ -559,8 +560,6 @@ int doGui(void) {
     else
       renderVolume(screen);
 #endif /* CAPE_LCD3 */
-
-    incrementGameListFrame();
 
     EGLBlitGL(screen->pixels);
     EGLFlip();
@@ -669,11 +668,17 @@ fprintf(stderr, "SDL_QUIT\n");
       shiftSelectedVolumeDown();
 
     BESCheckJoysticks();
+
+    /* Get our end-of-frame time to see how long we spent doing everything */ 
     gettimeofday(&endTime, NULL);
     elapsedTime = ((endTime.tv_sec - startTime.tv_sec) * 1000000) + 
       (endTime.tv_usec - startTime.tv_usec);
-    if (elapsedTime < TIME_PER_FRAME)
-      usleep(TIME_PER_FRAME - elapsedTime);
+
+    /* Skip the necessary number of logical frames to match wall clock time */
+    frames = elapsedTime / TIME_PER_FRAME;
+    incrementGameListFrame(frames + 1);
+    usleep(elapsedTime % TIME_PER_FRAME);
+  
   } // End while loop
 
   fadeAudio();
