@@ -14,12 +14,11 @@
 #include <sys/types.h>
 
 #include <SDL.h>
-#include "gui.h" /* AWH: BeagleSNES GUI */
+#include "gui.h"
 
 int main (int argc, char **argv)
 {
-	int guiReturn, i;
-	gameInfo_t *currentNode;
+	int guiReturn;
 	SDL_Event event;
 
 	printf("Beagle Entertainment System\n");
@@ -44,20 +43,17 @@ int main (int argc, char **argv)
 		disableGuiAudio();
 		if (guiQuit) break;
 		printf("Done with GUI...\n");
-		currentNode = gameInfo->next;
-		for (i=0; i < guiReturn; i++)
-			currentNode = currentNode->next;
-		fprintf(stderr, "rom_filename: %s\n", currentNode->romFile.c_str());
+		fprintf(stderr, "rom_filename: %s\n", vGameInfo[guiReturn].romFile.c_str());
 
 		/* Clean out any events still in the queue */
 		while( SDL_PollEvent(&event) );
 		/* Launch the emulator */
 		BESPauseState = PAUSE_NONE;
 		BESPauseComboCurrent = 0;
-		switch(currentNode->platform)
+		switch(vGameInfo[guiReturn].platform)
 		{
 			case PLATFORM_SNES:
-				snes_main(currentNode->romFile.c_str());
+				snes_main(vGameInfo[guiReturn].romFile.c_str());
 				break;
 			case PLATFORM_GBA:
 				if (audioAvailable)
@@ -65,14 +61,14 @@ int main (int argc, char **argv)
 					gbaForceSettings = GBA_FORCE_FS_SYNC_AUDIO;
 				else
 					gbaForceSettings = GBA_FORCE_NO_FS_NO_AUDIO;
-				gba_main(currentNode->romFile.c_str());
+				gba_main(vGameInfo[guiReturn].romFile.c_str());
 				break;
 			case PLATFORM_GBC:
 				gbaForceSettings = GBC_FORCE;
-				gba_main(currentNode->romFile.c_str());
+				gba_main(vGameInfo[guiReturn].romFile.c_str());
 				break;
 			case PLATFORM_NES:
-				nes_main(currentNode->romFile.c_str());
+				nes_main(vGameInfo[guiReturn].romFile.c_str());
 				break;
 			default:
 				fprintf(stderr, "Unknown platform\n");

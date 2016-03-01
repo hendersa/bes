@@ -73,57 +73,55 @@ void loadGameInfo(void)
 {
   int i = 0;
   std::string tempBuf;
-  gameInfo_t *currentNode = gameInfo;
 
   genreHeader = TTF_RenderText_Blended(fontFSB12, "GENRE:", headerTextColor);
   dateHeader = TTF_RenderText_Blended(fontFSB12, "RELEASE DATE:", headerTextColor);
 
-  infoPanel = (infoPanel_t *)calloc(totalGames, sizeof(infoPanel_t));
+  infoPanel = (infoPanel_t *)calloc(vGameInfo.size(), sizeof(infoPanel_t));
 
   /* Dynamic loading of game information */
-  for (i=0; i < totalGames; i++) {
+  for (std::vector<gameInfo_t>::iterator it = vGameInfo.begin(); it != vGameInfo.end(); ++it) {
     /* Move to the next node and render its text */
-    currentNode = currentNode->next;
-    infoPanel[i].titleText = TTF_RenderText_Blended(fontFS30, currentNode->gameTitle.c_str(), itemTextColor);
+    infoPanel[i].titleText = TTF_RenderText_Blended(fontFS30, it->gameTitle.c_str(), itemTextColor);
 
     /* Load the box image */
-    if (currentNode->imageFile[0]) {
-      tempBuf = std::string(BES_FILE_ROOT_DIR "/images/") + currentNode->imageFile;
+    if (it->imageFile[0]) {
+      tempBuf = std::string(BES_FILE_ROOT_DIR "/images/") + it->imageFile;
     } else
       tempBuf = "gfx/blank_box.png";
     //fprintf(stderr, "Image: '%s'\n", tempBuf.c_str());
     infoPanel[i].box = IMG_Load(tempBuf.c_str());
 
     /* Render the genre text */
-    if (!currentNode->genreText[0].empty()) {
-      tempBuf = currentNode->genreText[0];
-      if (!currentNode->genreText[1].empty()) {
+    if (!it->genreText[0].empty()) {
+      tempBuf = it->genreText[0];
+      if (!it->genreText[1].empty()) {
         tempBuf += "/";
-        tempBuf += currentNode->genreText[1];
+        tempBuf += it->genreText[1];
       }
     } else
       tempBuf = "None Listed";     
     infoPanel[i].genreText = TTF_RenderText_Blended(fontFS16, tempBuf.c_str(), itemTextColor);
 
     /* Render the release date text */
-    infoPanel[i].dateText = TTF_RenderText_Blended(fontFS16, currentNode->dateText.c_str(), itemTextColor);
+    infoPanel[i].dateText = TTF_RenderText_Blended(fontFS16, it->dateText.c_str(), itemTextColor);
 
     /* Render the description text */
-    if ( currentNode->infoText[0].empty() &&
-      currentNode->infoText[1].empty() &&
-      currentNode->infoText[2].empty() &&
-      currentNode->infoText[3].empty() &&
-      currentNode->infoText[4].empty() )
+    if ( it->infoText[0].empty() &&
+      it->infoText[1].empty() &&
+      it->infoText[2].empty() &&
+      it->infoText[3].empty() &&
+      it->infoText[4].empty() )
       infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, "No description available.", itemTextColor);
     else
     {
-      infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[0].c_str(), itemTextColor);
-      infoPanel[i].itemText[1] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[1].c_str(), itemTextColor);
-      infoPanel[i].itemText[2] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[2].c_str(), itemTextColor);
-      infoPanel[i].itemText[3] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[3].c_str(), itemTextColor);
-      infoPanel[i].itemText[4] = TTF_RenderText_Blended(fontFS16, currentNode->infoText[4].c_str(), itemTextColor);
+      infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, it->infoText[0].c_str(), itemTextColor);
+      infoPanel[i].itemText[1] = TTF_RenderText_Blended(fontFS16, it->infoText[1].c_str(), itemTextColor);
+      infoPanel[i].itemText[2] = TTF_RenderText_Blended(fontFS16, it->infoText[2].c_str(), itemTextColor);
+      infoPanel[i].itemText[3] = TTF_RenderText_Blended(fontFS16, it->infoText[3].c_str(), itemTextColor);
+      infoPanel[i].itemText[4] = TTF_RenderText_Blended(fontFS16, it->infoText[4].c_str(), itemTextColor);
     } /* Description if-else */
-
+    i++;
   } /* Node for loop */
 }
 

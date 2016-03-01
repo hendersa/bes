@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <string>
+#include <vector>
 #include "beagleboard.h"
 
 #ifdef __cplusplus
@@ -247,14 +248,9 @@ typedef struct _gameInfo {
   std::string genreText[MAX_GENRE_TYPES];
   /* Platform this game runs on */
   platformType_t platform;
-  /* Link to next game in list */
-  struct _gameInfo *next;
-  /* Link to prev game in list */
-  struct _gameInfo *prev;
 } gameInfo_t;
 
-extern gameInfo_t *gameInfo;
-extern uint16_t totalGames;
+extern std::vector<gameInfo_t> vGameInfo;
 
 extern uint8_t currentVolume;
 extern int volumePressDirection;

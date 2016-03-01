@@ -53,13 +53,8 @@ uint8_t GPIOButtonMap[GPIO_MAP_SIZE] = { 0xFF, 0xFF, 0xFF,
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 uint32_t BESPauseCombo = 0;
-
-/* Head of the game information linked list */
-gameInfo_t *gameInfo = NULL;
-
-/* Temp nodes used in game information linked list */
-static gameInfo_t *prevGame = NULL;
-static gameInfo_t *currentGame = NULL;
+std::vector<gameInfo_t> vGameInfo;
+static gameInfo_t currentGame;
 
 typedef struct {
   const char *name; /* Name of the tag */
@@ -150,6 +145,7 @@ static void XMLCALL
 startElement(void *userData, const char *name, const char **atts)
 {
   int i;
+  uint8_t x;
   int *depthPtr = (int *)userData;
 
   /* Increase depth */
@@ -177,15 +173,16 @@ startElement(void *userData, const char *name, const char **atts)
       switch(i)
       {
         case TAG_GAME:
-          /* Allocate a new info node */
-          currentGame = new gameInfo_t; 
-          if (!currentGame) {
-            fprintf(stderr, "\nERROR: Unable to allocate new game node\n");
-            exit(1);
-          }
-          /* Defaults */
-          currentGame->dateText.assign(DEFAULT_DATE_TEXT);
-          currentGame->platform = currentPlatform;
+          /* Defaults for a new info node*/
+          currentGame.gameTitle = "";
+          currentGame.romFile = "";
+          currentGame.imageFile = "";
+          for (x=0; x < MAX_TEXT_LINES; x++)
+            currentGame.infoText[x] = "";
+          currentGame.dateText.assign(DEFAULT_DATE_TEXT);
+          for (x=0; x < MAX_GENRE_TYPES; x++)
+            currentGame.genreText[x] = "";
+          currentGame.platform = currentPlatform;
           currentGenre = 0;
           currentText = 0;
           break;
@@ -249,35 +246,16 @@ endElement(void *userData, const char *name)
             if (invalidTag)
             {
               fprintf(stderr, "ERROR: Found </game> tag in incorrect place\n");
-              if (currentGame)
-              { 
-                delete currentGame;
-                currentGame = NULL;
-              }
               break;
             }
             /* Do we have the bare minimum fields? */
             else if (definedTagFlag[TAG_TITLE] && definedTagFlag[TAG_ROM])
             {
-              totalGames++;
-              prevGame = gameInfo;
-              while(prevGame->next)
-              {
-                if (prevGame->next->gameTitle != currentGame->gameTitle)
-                  break;
-                prevGame = prevGame->next;
-              }
-              currentGame->next = prevGame->next;
-              prevGame->next = currentGame;
+              vGameInfo.push_back(currentGame);
             }
             else 
             {
               fprintf(stderr, "ERROR: Missing game title or rom filename\n");
-              if (currentGame)
-              {
-                delete currentGame;
-                currentGame = NULL;
-              }
             }
 
             /* Reset the flags for tag in use and defined */
@@ -294,7 +272,7 @@ endElement(void *userData, const char *name)
               break;
             }
             //fprintf(stderr, "Copying gameTitle '%s' into node\n", workingBuf);
-            currentGame->gameTitle = workingBuf;
+            currentGame.gameTitle = workingBuf;
             definedTagFlag[i] = 1;
             break;
 
@@ -305,7 +283,7 @@ endElement(void *userData, const char *name)
               break;
             }
             //fprintf(stderr, "Copying romFile '%s' into node\n", workingBuf);
-            currentGame->romFile = workingBuf;
+            currentGame.romFile = workingBuf;
             definedTagFlag[i] = 1;
             break;
 
@@ -316,7 +294,7 @@ endElement(void *userData, const char *name)
               break;
             }
             //fprintf(stderr, "Copying imageFile '%s' into node\n", workingBuf);
-            currentGame->imageFile.assign(workingBuf);
+            currentGame.imageFile.assign(workingBuf);
             definedTagFlag[i] = 1;
             break;
 
@@ -326,14 +304,14 @@ endElement(void *userData, const char *name)
               fprintf(stderr, "ERROR: Year already defined for game\n");
               break;
             }
-            currentGame->dateText.assign(workingBuf);
+            currentGame.dateText.assign(workingBuf);
             definedTagFlag[i] = 1;
             break;
 
           case TAG_GENRE:
             if (currentGenre < MAX_GENRE_TYPES)
             {
-              currentGame->genreText[currentGenre].assign(workingBuf);
+              currentGame.genreText[currentGenre].assign(workingBuf);
               currentGenre++;
             }
             definedTagFlag[i] = 1;
@@ -342,7 +320,7 @@ endElement(void *userData, const char *name)
           case TAG_TEXT:
             if (currentText < MAX_TEXT_LINES)
             {
-              currentGame->infoText[currentText].assign(workingBuf);
+              currentGame.infoText[currentText].assign(workingBuf);
               currentText++;
             }
             definedTagFlag[i] = 1;
@@ -435,10 +413,8 @@ int loadGameConfig(void)
   XML_Parser parser = XML_ParserCreate(NULL);
   int done, i, depth = 0;
   FILE *config = NULL;
-  gameInfo_t *tail = NULL;
 
-  gameInfo = NULL;
-  totalGames = 0;
+  vGameInfo.empty();
 
   XML_SetUserData(parser, &depth);
   XML_SetElementHandler(parser, startElement, endElement);
@@ -456,15 +432,6 @@ int loadGameConfig(void)
     definedTagFlag[i] = 0;
   }
 
-  /* Initialize the dummy head/tail sentinels */
-  gameInfo = new gameInfo_t;
-  tail = new gameInfo_t;
-  if (!gameInfo || !tail) {
-    fprintf(stderr, "\nERROR: Unable to allocate sentinel nodes\n");
-    exit(1);
-  } 
-  currentGame = gameInfo;
-
   do {
     size_t len = fread(buf, 1, sizeof(buf), config);
     done = len < sizeof(buf);
@@ -474,25 +441,11 @@ int loadGameConfig(void)
               XML_ErrorString(XML_GetErrorCode(parser)),
               XML_GetCurrentLineNumber(parser));
       fclose(config);
-
-      /* Add a tail sentinel node */
-      currentGame = gameInfo;
-      while (currentGame->next)
-        currentGame = currentGame->next;
-      currentGame->next = tail;
-      
       return 1;
     }
   } while (!done);
   XML_ParserFree(parser);
   fclose(config);
-
-  /* Add a tail sentinel node */
-  currentGame = gameInfo;
-  while(currentGame->next)
-    currentGame = currentGame->next;
-  currentGame->next = tail;
-
   return 0;
 }
 

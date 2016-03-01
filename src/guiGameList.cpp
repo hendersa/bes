@@ -77,17 +77,43 @@ static float shiftFrame = 0.0f, shiftFrameFactor = BASE_SHIFT_FRAME_FACTOR;
 
 static SDL_Surface *itemListSurface;
 static SDL_Rect itemListSurfaceRect = {12, 0, 0, 0};
+static SDL_Rect itemSurfaceRect = {0, 0, 0, 0};
 static SDL_Surface *thumbOrig = NULL;
 static SDL_Surface *thumb = NULL;
 static SDL_Rect thumbDstRect = {0, 0, 0, 0};
 
+static void renderSingleTextItem(const uint8_t slot, const uint32_t gameIndex)
+{
+  std::string buffer;
+      
+  buffer = "      ";
+  buffer += vGameInfo[gameIndex].gameTitle;
+  itemText[slot] = TTF_RenderText_Blended(itemListFont, buffer.c_str(), itemTextColor);
+  SDL_BlitSurface(consoleIcons, &consoleIconRect[vGameInfo[gameIndex].platform - TAG_FIRST_PLATFORM], itemText[slot], NULL);
+}
+
+static void renderItemListSurface(void)
+{
+  uint8_t x;
+
+  itemSurfaceRect.w = itemListSurface->w;
+  itemSurfaceRect.h = (selectOverlay->h - 8);
+
+  for (x = 0; x < MAX_GAMES_PER_SCREEN + 2; x++)
+  {
+    itemListSurfaceRect.y = x * (selectOverlay->h - 8);
+    itemSurfaceRect.y = itemListSurfaceRect.y;
+    SDL_FillRect(itemListSurface, &itemSurfaceRect, 0x0);
+    if (itemText[x] != NULL)
+      SDL_BlitSurface(itemText[x], NULL, itemListSurface, &itemListSurfaceRect);
+  }
+}
+
 static void renderTextItems(const bool shiftDown, const bool warp)
 {
-  gameInfo_t *currentNode;
   std::string buffer;
-  uint8_t gamesToRender = (MAX_GAMES_PER_SCREEN + 2);
-  int32_t x = 0; 
-  static bool rendered = false;
+  uint8_t gamesToRender = MAX_GAMES_PER_SCREEN;
+  uint32_t x = 0;
 
   /* Here is how this works:
      Rather than pre-render every single game title in its own SDL_Surface and
@@ -115,12 +141,11 @@ static void renderTextItems(const bool shiftDown, const bool warp)
      When the menu "warps" to a new location (moves without the overlay
      scrolling), we free ALL of the itemText surfaces and rerender them. 
   */
-  currentNode = gameInfo;
 
   if (warp) {
     /* Figure out how many entries to render */
-    if ((totalGames + 2) <= gamesToRender)
-      gamesToRender = (totalGames + 2);
+    if ((vGameInfo.size() - topIndex) < MAX_GAMES_PER_SCREEN)
+      gamesToRender = vGameInfo.size() - topIndex;
 
     /* Clear out all of the previous textItems */
     for (x=0; x < (MAX_GAMES_PER_SCREEN + 2); x++)
@@ -131,74 +156,66 @@ static void renderTextItems(const bool shiftDown, const bool warp)
       }
     }
 
-    /* Find the new node info */
-    for (x = 0; x < topIndex; x++)
-      currentNode = currentNode->next;
+    /* Rendering the top offscreen entry? */
+    if (topIndex > 0)
+      renderSingleTextItem(0, (topIndex - 1));
 
-    /* Render the textItems */
-    for (x=0; x < gamesToRender; x++) {
-      if (currentNode) {
-        buffer = "      ";
-        buffer += currentNode->gameTitle;
-        itemText[x] = TTF_RenderText_Blended(itemListFont, buffer.c_str(), itemTextColor);
-        SDL_BlitSurface(consoleIcons, &consoleIconRect[currentNode->platform - TAG_FIRST_PLATFORM], itemText[x], NULL);
-        currentNode = currentNode->next;
-      }
-    }
+    /* Render the visible textItems */
+    for (x = 0; x < gamesToRender; x++)
+      renderSingleTextItem((x+1), (x + topIndex));
+
+    /* Rendering the bottom offscreen entry? */
+    if ( (vGameInfo.size() > MAX_GAMES_PER_SCREEN) && (topIndex < (vGameInfo.size() - MAX_GAMES_PER_SCREEN)) )
+      renderSingleTextItem((MAX_GAMES_PER_SCREEN + 1), (topIndex + MAX_GAMES_PER_SCREEN));
+
   } /* End "warp" case */
   else if (shiftDown) { /* Are we moving down the list? */
     /* No adjustments needed when the screen can't scroll */
-    if (totalGames <= MAX_GAMES_PER_SCREEN) return;
+    if (vGameInfo.size() <= MAX_GAMES_PER_SCREEN) return;
 
     /* No adjustments needed when the screen isn't scrolling */
     if ( ((currentIndex == (topIndex+(MAX_GAMES_PER_SCREEN-1))) 
       && (nextIndex > currentIndex)) ) {
 
       /* Shift up the textItems */
-      if (itemText[0]) {
+      if (itemText[0])
         SDL_FreeSurface(itemText[0]);
-        itemText[0] = NULL;
-      }
-      for (x = 0; x < (MAX_GAMES_PER_SCREEN + 2); x++)
+      for (x = 0; x < (MAX_GAMES_PER_SCREEN + 1); x++)
+      {
         itemText[x] = itemText[x+1];
+        //renderSingleTextItem(x, topIndex + x);
+      }
+      itemText[MAX_GAMES_PER_SCREEN + 1] = NULL;
 
-      /* Find the new node info */
-      for (x = 0; x < (topIndex + MAX_GAMES_PER_SCREEN + 2); x++)
-        currentNode = currentNode->next;
-
-      /* Render the new textItem */
-      buffer = "      ";
-      buffer += currentNode->gameTitle;
-      itemText[MAX_GAMES_PER_SCREEN+1] = TTF_RenderText_Blended(itemListFont, buffer.c_str(), itemTextColor);
-      SDL_BlitSurface(consoleIcons, &consoleIconRect[currentNode->platform - TAG_FIRST_PLATFORM], itemText[MAX_GAMES_PER_SCREEN+1], NULL);
-
+      /* Rendering the bottom offscreen entry? */
+      if (topIndex < (vGameInfo.size() - MAX_GAMES_PER_SCREEN - 1))
+        renderSingleTextItem((MAX_GAMES_PER_SCREEN + 1), (topIndex + MAX_GAMES_PER_SCREEN + 1));
+      
     } /* Check if screen is scrolling */
   } /* End shiftDown case */
   else { /* We're going up the list */
     /* No adjustments needed when the screen can't scroll */
-    if (totalGames <= MAX_GAMES_PER_SCREEN) return;
+    if (vGameInfo.size() <= MAX_GAMES_PER_SCREEN) return;
 
     /* No adjustments needed when the screen isn't scrolling */
     if ((currentIndex == topIndex) && (nextIndex < currentIndex))
     {
       /* Shift down the textItems */
-      if (itemText[MAX_GAMES_PER_SCREEN + 1]) 
+      if (itemText[MAX_GAMES_PER_SCREEN + 1])
         SDL_FreeSurface(itemText[MAX_GAMES_PER_SCREEN + 1]);
-      for (x = MAX_GAMES_PER_SCREEN; x >= 0; x--)
-        itemText[x+1] = itemText[x];
+      for (x = (MAX_GAMES_PER_SCREEN + 1); x > 0; x--)
+        itemText[x] = itemText[x-1];
 
-      /* Find the new node info */
-      for (x = 0; x < (topIndex - 1); x++)
-        currentNode = currentNode->next;
+      /* Rendering the top offscreen entry? */
+      itemText[0] = NULL;
+      if (topIndex > 1)
+        renderSingleTextItem(0, (topIndex - 2));
 
-      /* Render the new textItem */
-      buffer = "      ";
-      buffer += currentNode->gameTitle;
-      itemText[0] = TTF_RenderText_Blended(itemListFont, buffer.c_str(), itemTextColor);
-      SDL_BlitSurface(consoleIcons, &consoleIconRect[currentNode->platform - TAG_FIRST_PLATFORM], itemText[0], NULL);
     } /* Check if screen is scrolling */
   } /* End !shiftDown case */
 
+  /* Render all of those textItem[] entries onto the itemListSurface */
+  renderItemListSurface();
 }
 
 void loadGameLists(void)
@@ -218,15 +235,15 @@ void loadGameLists(void)
 
   /* Begin constructing the gfx for the games list */
   thumb = NULL;
-  itemText = (SDL_Surface **)calloc(/*totalGames*/MAX_GAMES_PER_SCREEN+2, sizeof(SDL_Surface *));
+  itemText = (SDL_Surface **)calloc(MAX_GAMES_PER_SCREEN+2, sizeof(SDL_Surface *));
  
   renderTextItems(false, true);
 
   /* Do we need to create a thumb for this list? */
-  if (totalGames > MAX_GAMES_PER_SCREEN)
+  if (vGameInfo.size() > MAX_GAMES_PER_SCREEN)
   {
     /* Figure out how tall the thumb must be */
-    thumbHeight = (TRACK_HEIGHT - 4) - ((totalGames - MAX_GAMES_PER_SCREEN) / (float)totalGames) * (TRACK_HEIGHT - 4);
+    thumbHeight = (TRACK_HEIGHT - 4) - ((vGameInfo.size() - MAX_GAMES_PER_SCREEN) / (float)vGameInfo.size()) * (TRACK_HEIGHT - 4);
     if (thumbHeight < 14) thumbHeight = 14;
     thumb = SDL_CreateRGBSurface(SDL_SWSURFACE, thumbOrig->w, thumbHeight, 16, 0x7C00, 0x03E0, 0x001F, 0);
     /* Top of thumb */
@@ -251,8 +268,7 @@ void loadGameLists(void)
 }
 
 void renderThumb(SDL_Surface *screen) {
-  //SDL_FillRect(screen, &trackRect, 0xFFFF);
-  thumbDstRect.y = trackRect.y + 2 + ((topIndex / (float) (totalGames-MAX_GAMES_PER_SCREEN)) * (TRACK_HEIGHT - 4 - thumb->h));
+  thumbDstRect.y = trackRect.y + 2 + ((topIndex / (float) (vGameInfo.size()-MAX_GAMES_PER_SCREEN)) * (TRACK_HEIGHT - 4 - thumb->h));
 
   // If the text list isn't scrolling...
   if ( (nextIndex == currentIndex) ||
@@ -262,17 +278,23 @@ void renderThumb(SDL_Surface *screen) {
     // Nothing
   // Text is scrolling up...
   } else if (nextIndex > currentIndex) {
-    thumbDstRect.y += (((shiftFrame / (float)(selectOverlay->h - 8)) / (float) (totalGames-MAX_GAMES_PER_SCREEN)) * (TRACK_HEIGHT - 4 - thumb->h));
+    thumbDstRect.y += (((shiftFrame / (float)(selectOverlay->h - 8)) / (float) (vGameInfo.size()-MAX_GAMES_PER_SCREEN)) * (TRACK_HEIGHT - 4 - thumb->h));
   // Text is scrolling down...
   } else if (nextIndex < currentIndex) {
-    thumbDstRect.y -= (((shiftFrame / (float)(selectOverlay->h - 8)) / (float) (totalGames-MAX_GAMES_PER_SCREEN)) * (TRACK_HEIGHT - 4 - thumb->h));
+    thumbDstRect.y -= (((shiftFrame / (float)(selectOverlay->h - 8)) / (float) (vGameInfo.size()-MAX_GAMES_PER_SCREEN)) * (TRACK_HEIGHT - 4 - thumb->h));
   }
   SDL_BlitSurface(thumb, NULL, screen, &thumbDstRect);
 }
 
 void renderGameList(SDL_Surface *screen) {
-  int i, vertical_offset;
+  uint32_t i; 
+  int vertical_offset;
   SDL_Rect clip_rect = {0, 0, 0, itemTextDstRect.h};
+
+  clip_rect.y = (selectOverlay->h - 8);
+  clip_rect.w = itemListSurface->w;
+  clip_rect.h = (selectOverlay->h - 8) * MAX_GAMES_PER_SCREEN;
+  itemListSurfaceRect.y = (Y_POS + 60-15);
 
   SDL_FillRect(screen, &backgroundRect, 0x0);
   if (guiSize != GUI_SMALL)
@@ -285,9 +307,9 @@ void renderGameList(SDL_Surface *screen) {
   }
 
   // First case: all games fit on a single screen
-  if (totalGames <= MAX_GAMES_PER_SCREEN) {
-    vertical_offset = (MAX_GAMES_PER_SCREEN-totalGames) * (selectOverlay->h - 8) / 2;
-    for (i=0; i < totalGames; i++) {
+  if (vGameInfo.size() <= MAX_GAMES_PER_SCREEN) {
+    vertical_offset = (MAX_GAMES_PER_SCREEN-vGameInfo.size()) * (selectOverlay->h - 8) / 2;
+    for (i=0; i < vGameInfo.size(); i++) {
       itemTextDstRect.y = (Y_POS + 45 + vertical_offset) + i*(selectOverlay->h - 8);
       SDL_BlitSurface(itemText[i+1], NULL, screen, &itemTextDstRect);
     }
@@ -304,10 +326,7 @@ void renderGameList(SDL_Surface *screen) {
   }
   // Second case: > MAX_GAMES_PER_SCREEN titles, nothing is moving
   else if (nextIndex == currentIndex) {
-    for (i=0; i < MAX_GAMES_PER_SCREEN; i++) {
-      itemTextDstRect.y = (Y_POS + 45) + i*(selectOverlay->h - 8);
-      SDL_BlitSurface(itemText[i + 1], NULL, screen, &itemTextDstRect);
-    }
+    SDL_BlitSurface(itemListSurface, &clip_rect, screen, &itemListSurfaceRect);
     overlay1DstRect.y = (Y_POS + 40) + (currentIndex - topIndex)*(selectOverlay->h - 8);
     SDL_BlitSurface(selectOverlay, NULL, screen, &overlay1DstRect);
     renderThumb(screen);
@@ -317,10 +336,7 @@ void renderGameList(SDL_Surface *screen) {
     (((nextIndex >= topIndex) && (nextIndex < currentIndex)) ||
     ((nextIndex <= (topIndex + (MAX_GAMES_PER_SCREEN-1))) && (nextIndex > currentIndex)))  
   {
-    for (i=0; i < MAX_GAMES_PER_SCREEN; i++) {
-      itemTextDstRect.y = (Y_POS + 45) + i*(selectOverlay->h - 8);
-      SDL_BlitSurface(itemText[i + 1], NULL, screen, &itemTextDstRect);
-    }
+    SDL_BlitSurface(itemListSurface, &clip_rect, screen, &itemListSurfaceRect);
     overlay1DstRect.y = (Y_POS + 40) + (currentIndex-topIndex)*(selectOverlay->h - 8);
 
     /* Are we shifting down? */
@@ -335,16 +351,7 @@ void renderGameList(SDL_Surface *screen) {
   }
   // Fourth case: > MAX_GAMES_PER_SCREEN titles, text scrolls down
   else if ((currentIndex == topIndex) && (nextIndex < currentIndex)) {
-    clip_rect.w = itemListSurface->w;
-    clip_rect.h = (selectOverlay->h - 8) * MAX_GAMES_PER_SCREEN;
-    clip_rect.y = (selectOverlay->h - 8) - shiftFrame;
-
-    /* Render the entries */
-    SDL_FillRect(itemListSurface, NULL, 0x0); 
-    for (i=-1; i <= (MAX_GAMES_PER_SCREEN - 1); i++) {
-      itemListSurfaceRect.y = (i+1)*(selectOverlay->h - 8);
-      SDL_BlitSurface(itemText[i + 2], NULL, itemListSurface, &itemListSurfaceRect);
-    }
+    clip_rect.y = (2 * (selectOverlay->h - 8)) - shiftFrame;
     itemListSurfaceRect.y = (Y_POS + 60-15);
     SDL_BlitSurface(itemListSurface, &clip_rect, screen, &itemListSurfaceRect);
 
@@ -352,21 +359,11 @@ void renderGameList(SDL_Surface *screen) {
     SDL_BlitSurface(selectOverlay, NULL, screen, &overlay1DstRect);
     renderThumb(screen);
   }
-  // Fifth case: >6 titles, text scrolls up
+  // Fifth case: > MAX_GAMES_PER_SCREEN titles, text scrolls up
   else if ((currentIndex == (topIndex+(MAX_GAMES_PER_SCREEN-1))) && (nextIndex > currentIndex)) {
-    clip_rect.w = itemListSurface->w;
-    clip_rect.h = (selectOverlay->h - 8) * MAX_GAMES_PER_SCREEN;
-    clip_rect.y = shiftFrame + (selectOverlay->h - 8);
-
-    /* Render the entries */
-    SDL_FillRect(itemListSurface, NULL, 0x0);
-    for (i=0; i <= MAX_GAMES_PER_SCREEN; i++) {
-      itemListSurfaceRect.y = (i+1)*(selectOverlay->h - 8);
-      SDL_BlitSurface(itemText[i], NULL, itemListSurface, &itemListSurfaceRect);
-    }
+    clip_rect.y = shiftFrame; //+ (selectOverlay->h - 8);
     itemListSurfaceRect.y = (Y_POS + 45);
     SDL_BlitSurface(itemListSurface, &clip_rect, screen, &itemListSurfaceRect);
-
     overlay1DstRect.y = (Y_POS + 40) + (MAX_GAMES_PER_SCREEN-1)*(selectOverlay->h - 8);
     SDL_BlitSurface(selectOverlay, NULL, screen, &overlay1DstRect);
     renderThumb(screen);
@@ -408,26 +405,22 @@ void shiftSelectedGameDown(int step)
     return;
 
   /* Are we at the end of the list? */
-  if (currentIndex == (totalGames-1))
+  if (currentIndex == (vGameInfo.size()-1))
     return;
 
   /* Start the shifting process */
   /* Case 1: Moving down one item */
   if (step == 1)
   {
-    /* Get the logical indices sorted out */
+    /* Adjust the textItem[] and render a new title */
     nextIndex = currentIndex + 1;
-    if (nextIndex > (totalGames-1))
-      nextIndex = totalGames - 1;
-
-    /* Do we need to adjust the textItem[] and render a new title? */
     renderTextItems(true, false); 
   }
   /* Case 2: Jumping a whole page of games */
   else
   {
     /* Are we already on the last page of games? */
-    if (currentIndex >= (((totalGames - 1) / MAX_GAMES_PER_SCREEN) *
+    if (currentIndex >= (((vGameInfo.size() - 1) / MAX_GAMES_PER_SCREEN) *
       MAX_GAMES_PER_SCREEN) )
       return;  
 
@@ -436,9 +429,10 @@ void shiftSelectedGameDown(int step)
       MAX_GAMES_PER_SCREEN;
     nextIndex += MAX_GAMES_PER_SCREEN;
     currentIndex = nextIndex;
+
     /* Last screen of games has less than MAX_GAMES_PER_SCREEN entries... */
-    if ((currentIndex - MAX_GAMES_PER_SCREEN + 1) < (totalGames - 1))
-      topIndex = (totalGames - MAX_GAMES_PER_SCREEN);
+    if ((currentIndex - MAX_GAMES_PER_SCREEN + 1) < (vGameInfo.size() - 1))
+      topIndex = (vGameInfo.size() - MAX_GAMES_PER_SCREEN);
     else
       topIndex = currentIndex;
 
@@ -461,20 +455,16 @@ void shiftSelectedGameUp(int step)
   /* Start the shifting process */
   /* Case 1: Moving down one item */
   if (step == 1) {
-    nextIndex = currentIndex - 1;
-
     /* Do we need to adjust the textItem[] and render a new title? */
+    nextIndex = currentIndex - 1;
     renderTextItems(false, false);
-
   }
   /* Case 2: Jumping a whole page of games */
   else
   {
     /* Are we already on the first page of games? */
     if (currentIndex < MAX_GAMES_PER_SCREEN)
-    {
       topIndex = currentIndex = nextIndex = 0;
-    }
     else {
       /* Jump to previous "top of the screen" index */
       nextIndex = (currentIndex / MAX_GAMES_PER_SCREEN) *
