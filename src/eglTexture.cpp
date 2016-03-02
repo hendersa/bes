@@ -103,10 +103,10 @@ static void setupMainTexRefCoords(void)
 static void setupPauseTexRefCoords(void)
 {
   float left, right, top, bottom;
-  left = -1.0f * 0.0f; //(PAUSE_GUI_WIDTH / 512.0f);
+  left = -1.0f * 0.0f;
   right = 1.0f * (PAUSE_GUI_WIDTH / 512.0f);
   top = 1.0f * (PAUSE_GUI_HEIGHT / 512.0f);
-  bottom = -1.0f * 0.0f; // * (PAUSE_GUI_HEIGHT / 512.0f);
+  bottom = -1.0f * 0.0f;
 
   pauseTexPosCoords[0] = left;
   pauseTexPosCoords[1] = bottom;
@@ -220,7 +220,7 @@ void EGLSetupGL(void)
   glDisable(GL_DEPTH_TEST);
   glEnable(GL_CULL_FACE);
   glDisable(GL_DITHER);
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f); // Background color to red
+  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 }

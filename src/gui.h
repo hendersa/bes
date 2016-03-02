@@ -116,13 +116,11 @@ extern void loadInstruct(void);
 extern void renderInstruct(SDL_Surface *screen, const uint32_t gamepadPresent);
 
 /* guiGameInfo.cpp */
-extern void loadGameInfo(void);
-extern void renderGameInfo(SDL_Surface *screen, const uint32_t i);
+extern void initGameInfo(void);
+extern void renderGameInfo(SDL_Surface *screen, const uint32_t index);
 
 /* gui.cpp */
-#if defined (CAPE_LCD3)
 extern void renderVolume(const SDL_Surface *surface);
-#endif /* CAPE_LCD3 */
 extern void enableGuiAudio(void);
 extern void disableGuiAudio(void);
 extern bool audioAvailable;
@@ -319,6 +317,8 @@ enum {
 /* guiPauseDlg.cpp */
 extern void loadPauseGui(void);
 extern uint32_t doPauseGui(const char *romname, const platformType_t platform);
+extern void checkForSnapshot(const char *romname, const int platform,
+	SDL_Surface *snapshot, const uint16_t width, const uint16_t height);
 typedef enum {
   PAUSE_NONE = 0, /* No special pause activity */
   PAUSE_NEXT,  /* On the next pass through, pause */

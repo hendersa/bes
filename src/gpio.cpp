@@ -51,6 +51,7 @@
 #define GPIO_SETDATAOUT		0x194
 #define GPIO_CLEARDATAOUT	0x190
 #define NUM_GPIO_BANKS 4
+#define BUF_SIZE 128
 static uint32_t *gpios[NUM_GPIO_BANKS];
 static uint32_t *controlModule;
 static uint8_t currentGPIOState[GPIO_MAP_SIZE];
@@ -68,7 +69,7 @@ uint32_t gpioPinSetup(void)
 	return(gpioEnabled);
 #else
 	int fd, fdexport;
-	char buf[128];
+	char buf[BUF_SIZE];
 	int i;
 
 	memset(currentGPIOState, 0, sizeof(uint8_t) * GPIO_MAP_SIZE);
@@ -98,8 +99,7 @@ uint32_t gpioPinSetup(void)
 	{
 		if (GPIOButtonMap[i] < 0xFF)
 		{
-#if 1
-			sprintf(buf, "%d", GPIOButtonMap[i]);
+			snprintf(buf, (BUF_SIZE - 1), "%d", GPIOButtonMap[i]);
 			fdexport = open("/sys/class/gpio/export", O_WRONLY);
 			if (fdexport < 0)
 			{
@@ -111,21 +111,13 @@ uint32_t gpioPinSetup(void)
 			{
 				fprintf(stderr, "Could not export pin %d\n", GPIOButtonMap[i]);
 			}
-			//else
-			//	fprintf(stderr, "Exported pin %d\n", GPIOButtonMap[i]);
 			close(fdexport);
 
 			/* Set up this pin as an input */
-			sprintf(buf, "/sys/class/gpio/gpio%d/direction", GPIOButtonMap[i]);
+			snprintf(buf, (BUF_SIZE - 1), "/sys/class/gpio/gpio%d/direction", GPIOButtonMap[i]);
 			fd = open(buf, O_WRONLY);
 			write(fd, "in", 2);
 			close(fd);
-#else
-			sprintf(buf, "echo %d > /sys/class/gpio/export > /dev/null", GPIOButtonMap[i]);
-			system(buf);
-			sprintf(buf, "echo in > /sys/class/gpio/gpio%d/direction > /dev/null", GPIOButtonMap[i]);
-			system(buf);
-#endif
 		} /* End if */
 	} /* End for */
 
@@ -203,7 +195,6 @@ void gpioUpdate(void)
 				changeGPIOState[i] = 0;
 			else {
 				changeGPIOState[i] = 1;
-				//fprintf(stderr, "gpio[%d] changed state\n", i);
 			}
 		} else
 			changeGPIOState[i] = 0;

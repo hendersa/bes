@@ -509,7 +509,7 @@ void *loadingThreadFunc(void *)
   loadGameConfig();
   loadInstruct();
   loadGameLists();
-  loadGameInfo();
+  initGameInfo();
   loadAudio();
   loadPauseGui();
   loadGBAGui();
@@ -716,6 +716,7 @@ fprintf(stderr, "SDL_QUIT\n");
   }
   return(currentSelectedGameIndex());
 }
+#endif /* BUILD_SNES */
 
 void shiftSelectedVolumeUp(void) {
   if (currentVolume < 64) {
@@ -731,7 +732,7 @@ void shiftSelectedVolumeDown(void) {
   }
   changeVolume();
 }
-#if 0 /* CAPE_LCD3 */
+
 void renderVolume(SDL_Surface *surface) {
   SDL_Rect bar = {45, 170, 20, 30};
   if (!audioAvailable || volumeOverlayCount <= 0) return;
@@ -742,6 +743,4 @@ void renderVolume(SDL_Surface *surface) {
   }
   volumeOverlayCount--;
 }
-#endif /* CAPE_LCD3 */
-#endif /* BUILD_SNES */
 

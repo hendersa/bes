@@ -47,6 +47,9 @@
 #include "beagleboard.h"
 #include "savepng.h"
 
+#define TINY_WIDTH 128
+#define TINY_HEIGHT 96
+
 #if !defined (BUILD_SNES)
 /* NES: Nestopia */
 #include "nes/unix/auxio.h"
@@ -79,35 +82,23 @@ static SDL_Rect menuTextPos[7] = { {0,0,0,0}, {0,0,0,0}, {0,0,0,0},
 	{0,0,0,0}, {0,0,0,0}, {0,0,0,0}, {0,0,0,0} };
 
 static uint32_t snapshotAvailable = 0;
-/* These two are loaded/saved from/to disk */
 static SDL_Surface *noSnapshotImage = NULL;
-static SDL_Surface *snapshotImage = NULL;
-/* This is the tiny 128x96 one */
+/* This is the tiny 128x96 screenshot */
 static SDL_Surface *tinySnapshotImage = NULL;
 
 static SDL_Surface *pauseMenuSurface = NULL;
-//static uint32_t menuPressDirection = 0;
 static uint32_t forceUnpause = 0, done = 0;
 static uint32_t frameCounter = 0, currentIndex = 0, nextIndex = 0;
 static SDL_Rect markerPos[4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};
-//static SDL_Surface *currentScreen = NULL;
 
-#if 0
-#if defined(CAPE_LCD3)
-static const uint32_t xOffset = 10; // (320-300)/2;
-static const uint32_t yOffset = 10; // (240-220)/2;
-#else
-static const uint32_t xOffset = 210; // (720-300)/2;
-static const uint32_t yOffset = 130; // (480-220)/2;
-#endif /* CAPE_LCD3 */
-#endif
-static void renderPauseGui(const char *romname, int platform);
+static void renderPauseGui(const char *romname, const int platform);
 static void shiftSelectedItemUp(void);
 static void shiftSelectedItemDown(void);
 static void incrementPauseItemFrame(void);
-static void loadScreenshot(const char *romname, int platform);
-static void saveScreenshot(const char *romname, int platform);
-static void checkForSnapshot(const char *romname, int platform);
+static void loadScreenshot(const char *romname, const int platform);
+static void saveScreenshot(const char *romname, const int platform);
+static void resizeImage(SDL_Surface *tempImage, SDL_Surface *tiny, 
+	const uint16_t width, const uint16_t height);
 
 void loadPauseGui(void) {
 	SDL_Surface *tempSurface;
@@ -152,7 +143,7 @@ void renderPauseGui(const char *romname, int platform) {
 	uint32_t i;
 
 	/* Check if there is a snapshot available */
-	checkForSnapshot(romname, platform);
+	checkForSnapshot(romname, platform, tinySnapshotImage, TINY_WIDTH, TINY_HEIGHT);
 
 	menuTextPos[0].x = (PAUSE_GUI_WIDTH / 2) - (menuImage[0]->w / 2); 
 	menuTextPos[0].y = 8;
@@ -273,8 +264,8 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 	snapshotAvailable = 0;
 	// SNES9X Settings.Paused = 1;
 	
-	tinySnapshotImage = SDL_CreateRGBSurface(SDL_SWSURFACE, 128,
-		96, 16, 0xFC00, 0x07E0, 0x001F, 0);	
+	tinySnapshotImage = SDL_CreateRGBSurface(SDL_SWSURFACE, TINY_WIDTH,
+		TINY_HEIGHT, 16, 0xFC00, 0x07E0, 0x001F, 0);	
 	/* Render the pause menu on the screen and make a copy of it */
 	renderPauseGui(romname, platform);
 
@@ -395,7 +386,6 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 						temp += romname;
 						temp += ".000";
 						S9xUnfreezeGame(temp.c_str());
-						//Settings.Paused = 1;
 					}
 					break;
 #endif /* BUILD_SNES */
@@ -526,10 +516,9 @@ void incrementPauseItemFrame(void)
 	}
 }
 
-/* controls.cpp */
-void loadScreenshot(const char *romname, int platform) {
+void loadScreenshot(const char *romname, const int platform) {
 	std::string temp;
-	SDL_Surface *tempSurface;
+	SDL_Surface *tempSurface, *snapshotImage;
 	SDL_PixelFormat *format = screenPause->format;
 
 	/* Load the screenshot associated with this snapshot */
@@ -550,7 +539,7 @@ void loadScreenshot(const char *romname, int platform) {
 	temp += romname;
 	temp += ".png";
 
-	if (snapshotImage) SDL_FreeSurface(snapshotImage);
+	//if (snapshotImage) SDL_FreeSurface(snapshotImage);
 	fprintf(stderr, "loadSnapshot(%s), '%s'\n", romname, temp.c_str());
 	tempSurface = IMG_Load(temp.c_str());
 	if (tempSurface) {
@@ -574,18 +563,19 @@ void loadScreenshot(const char *romname, int platform) {
 				EGLBlitGLCache(screen1024->pixels, 1);
 				break;
 #endif /* BUILD_SNES */
-		} 
+		}
+		SDL_FreeSurface(snapshotImage); 
 	}
 	 	
 	/* Re-render the pause menu */
 	renderPauseGui(romname, platform);
 }
 
-void saveScreenshot(const char *romname, int platform) {
+void saveScreenshot(const char *romname, const int platform) {
 	std::string imagePath, dirPath;
 	SDL_PixelFormat *format;
 	int fdfile;
-	SDL_Surface *tempSurface;
+	SDL_Surface *tempSurface, *snapshotImage;
 
 	dirPath = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/";
 	switch (platform)
@@ -604,7 +594,6 @@ void saveScreenshot(const char *romname, int platform) {
 	imagePath = dirPath + "/" + romname + ".png";
 
 	fprintf(stderr, "saveScreenshot(%s), '%s'\n", romname, imagePath.c_str());
-	if (snapshotImage) SDL_FreeSurface(snapshotImage);
 	format = screen512->format;
 	switch(texToUse) {
 		case TEXTURE_256:
@@ -639,15 +628,14 @@ void saveScreenshot(const char *romname, int platform) {
 		fsync(fdfile);
 		close(fdfile);
 	}
+	SDL_FreeSurface(snapshotImage);
 }
 
-void checkForSnapshot(const char *romname, int platform)
+void checkForSnapshot(const char *romname, const int platform,
+	SDL_Surface *snapshot, const uint16_t width, const uint16_t height)
 {
 	struct stat fileinfo;
 	std::string temp;
-	uint32_t dstRow, dstCol;
-	uint16_t *srcPixel, *dstPixel;
-	float xStep, yStep;
 	size_t stringSize;
 	SDL_Surface *tempSurface;
 
@@ -673,13 +661,6 @@ void checkForSnapshot(const char *romname, int platform)
 			stringSize = temp.length();
 			temp.resize(stringSize - 4);
 			temp += ".nst";
-			///sprintf(temp, "%s/%s/nes/%s", BES_FILE_ROOT_DIR,
-			//	BES_SAVE_DIR, romname);
-			//fprintf(stderr, "temp1: '%s'\n", temp);
-			//temp[strlen(temp)-4] = '\0';
-			//fprintf(stderr, "temp2: '%s'\n", temp);
-			//strcat(temp, ".nst");
-			//fprintf(stderr, "temp3: '%s'\n", temp);
 			break;
 		default:
 			snapshotAvailable = 0;
@@ -716,37 +697,48 @@ void checkForSnapshot(const char *romname, int platform)
 		fprintf(stderr, "Error stat-ing snapshot (image): '%s'\n", temp.c_str());
 	} else {
 		/* Try to load the screen snapshot */
-		if (snapshotImage) SDL_FreeSurface(snapshotImage);
 		tempSurface = IMG_Load(temp.c_str());
 		if (!tempSurface)
 		{
 			fprintf(stderr, "Error loading snapshot (image)\n");
 			return;
 		}
-		snapshotImage = SDL_ConvertSurface(tempSurface, screen512->format, 0);
-		SDL_FreeSurface(tempSurface);
 
-		SDL_LockSurface(snapshotImage);
-		SDL_LockSurface(tinySnapshotImage);
-		/* Shrink the screen snapshot from disk to the 128x96 size */
-		xStep = snapshotImage->w / 128.0;
-		yStep = snapshotImage->h / 96.0;
-		for (dstRow = 0; dstRow < 96; dstRow++)
-		{
-			srcPixel = (uint16_t *)snapshotImage->pixels;
-			srcPixel += (int)(dstRow * yStep) * 
-				(snapshotImage->pitch / 2); 
-			dstPixel = (uint16_t *)tinySnapshotImage->pixels;
-			dstPixel += (dstRow * tinySnapshotImage->pitch / 2);
-		           
-			for (dstCol = 0; dstCol < 128; dstCol++)
-			{                 
-				*dstPixel++ = *(srcPixel + 
-					(int)(dstCol * xStep));
-			}                 
-		}
-		SDL_UnlockSurface(tinySnapshotImage);
-		SDL_UnlockSurface(snapshotImage);
+		resizeImage(tempSurface, tinySnapshotImage, width, height);
+		SDL_FreeSurface(tempSurface);    
 	}
+}
+
+void resizeImage(SDL_Surface *tempImage, SDL_Surface *tinySnapshotImage, 
+	const uint16_t width, const uint16_t height) {
+
+	float xStep, yStep;
+	uint16_t *srcPixel, *dstPixel;
+	uint32_t dstRow, dstCol;
+	SDL_Surface *snapshotImage;
+
+	snapshotImage = SDL_ConvertSurface(tempImage, screen512->format, 0);		
+	SDL_LockSurface(snapshotImage);
+	SDL_LockSurface(tinySnapshotImage);
+	/* Shrink the tempImage to width x height size */
+	xStep = snapshotImage->w / ((float)width);
+	yStep = snapshotImage->h / ((float)height);
+	for (dstRow = 0; dstRow < height; dstRow++)
+	{
+		srcPixel = (uint16_t *)snapshotImage->pixels;
+		srcPixel += (int)(dstRow * yStep) * 
+			(snapshotImage->pitch / 2); 
+		dstPixel = (uint16_t *)tinySnapshotImage->pixels;
+		dstPixel += (dstRow * tinySnapshotImage->pitch / 2);
+		           
+		for (dstCol = 0; dstCol < width; dstCol++)
+		{                 
+			*dstPixel++ = *(srcPixel + (int)(dstCol * xStep));
+		}                 
+	}
+	SDL_UnlockSurface(tinySnapshotImage);
+	SDL_UnlockSurface(snapshotImage);
+
+	SDL_FreeSurface(snapshotImage);
 }
 

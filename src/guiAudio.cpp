@@ -48,8 +48,7 @@ static Mix_Chunk *coinSnd = NULL;
 void initAudio(void) {
   if (!audioAvailable) return;
 
-  if (Mix_OpenAudio(32000, AUDIO_S16SYS, 2, 4096 /*2048*/)) {
-  //if (Mix_OpenAudio(22050, AUDIO_S16SYS, 2, 2048)) {
+  if (Mix_OpenAudio(32000, AUDIO_S16SYS, 2, 4096)) {
     fprintf(stderr, "Unable to open audio!\n");
     audioAvailable = 0;
     return;
@@ -69,7 +68,6 @@ void loadAudio(void) {
   changeVolume();
 
   volumeOverlayCount = 0;
-  //Mix_FadeInMusic(music, -1, 2000);
 }
 
 void startAudio(void) {

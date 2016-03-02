@@ -40,16 +40,13 @@
 #include <SDL.h>
 #include <SDL/SDL_image.h>
 #include "gui.h"
-#include "beagleboard.h"
 
 static SDL_Surface *logoText = NULL;
 static SDL_Surface *beagleSprites = NULL;
 
 static SDL_Rect beagleRect[3] = {
 	{0,0,135,165}, {180,0,135,165}, {360,0,135,165} };
-//static SDL_Rect teleRect = {102,0,113,280};
 static SDL_Rect teleRect = {50, 0, 140, 320};
-//static SDL_Rect currentPos = {42, 0, 0, 0};
 static SDL_Rect currentPos = {30, 0, 0, 0};
 static SDL_Rect logoTextPos = {50, 165, 0, 0};
 static void doTele(void);
@@ -86,6 +83,9 @@ void doSplashScreen(void)
 	usleep(1500000);
 	if (!audioAvailable)
 		doAudioDlg();
+
+	SDL_FreeSurface(logoText);
+	SDL_FreeSurface(beagleSprites);
 }
 
 static void doTele(void)
@@ -94,7 +94,7 @@ static void doTele(void)
 	struct timeval startTime, endTime;
 	int passedTime;
 	int yBasePos = 120;
-	int yInc = 25; //19;
+	int yInc = 25;
 
 	playTeleSnd();
 	usleep(200000);
@@ -123,7 +123,6 @@ static void doTele(void)
 			currentPos.y = yBasePos - (frameCount * yInc);
 			SDL_BlitSurface(beagleSprites, &beagleRect[0], screen1024, &currentPos);
 		}
-		//SDL_UpdateRect(screen1024, teleRect.x, teleRect.y, teleRect.w, teleRect.h);
 		EGLBlitGL(screen1024->pixels);
 		EGLFlip();
 		gettimeofday(&endTime, NULL);

@@ -83,11 +83,9 @@ int EGLInitialize(void)
         fprintf(stderr, "Unable to fetch X11 display\n");
         return 0;
     }
-   
-    display = eglGetDisplay(EGL_DEFAULT_DISPLAY); /*(EGLNativeWindowType)x11Display);*/
-#else
+#endif /* PC_PLATFORM */   
     display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-#endif /* PC_PLATFORM */
+
     if (display == EGL_NO_DISPLAY) {
         fprintf(stderr, "eglGetDisplay() returned error %d\n", eglGetError());
         return 0;
@@ -109,14 +107,12 @@ fprintf(stderr, "Finished eglInitialize()\n");
 fprintf(stderr, "Finished eglChooseConfig() (numConfigs: %d)\n", numConfigs);
 
 /* EXTRA START */
-#if 1
     if (!eglGetConfigAttrib(display, config, EGL_NATIVE_VISUAL_ID, &format)) {
         fprintf(stderr, "eglGetConfigAttrib() returned error %d\n", eglGetError());
         EGLShutdown();
         return 0;
     }
 fprintf(stderr, "Finished eglGetConfigAttrib()\n");
-#endif
 /* EXTRA END */
 
 #if defined(PC_PLATFORM)
@@ -144,14 +140,14 @@ fprintf(stderr, "Finished eglCreateContext()\n");
     EGLint ver = -1;
     eglQueryContext(display, context, EGL_CONTEXT_CLIENT_VERSION, &ver);
     fprintf(stderr, "EGL Context version: %d\n", ver);
-#if 1
+
     if (eglMakeCurrent(display, surface, surface, context) == EGL_FALSE) {
         fprintf(stderr, "eglMakeCurrent() returned error %d\n", eglGetError());
         EGLShutdown();
         return 0;
     }
 fprintf(stderr, "Finished eglMakeCurrent()\n");
-#endif
+
 //wmInfo.info.x11.unlock_func();
     if (!eglQuerySurface(display, surface, EGL_WIDTH, &width) ||
         !eglQuerySurface(display, surface, EGL_HEIGHT, &height)) {

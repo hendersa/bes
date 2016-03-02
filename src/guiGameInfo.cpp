@@ -52,7 +52,7 @@ typedef struct {
   SDL_Surface *titleText;
 } infoPanel_t;
 
-static infoPanel_t *infoPanel;
+static infoPanel_t infoPanel;
 static SDL_Surface *genreHeader;
 static SDL_Surface *dateHeader;
 
@@ -68,79 +68,101 @@ static SDL_Rect dateHeaderDstRect={X_POS + 15, Y_POS + 330, 0, 0};
 static SDL_Rect dateTextDstRect={X_POS + 130, Y_POS + 328, 0, 0};
 static SDL_Rect textDstRect = {X_POS + 15, Y_POS + 210, 0, 0};
 static SDL_Rect tempRect;
+uint32_t loadedIndex = 1;
 
-void loadGameInfo(void)
+void initGameInfo(void)
 {
-  int i = 0;
-  std::string tempBuf;
-
+  memset(&infoPanel, 0, sizeof(infoPanel));
   genreHeader = TTF_RenderText_Blended(fontFSB12, "GENRE:", headerTextColor);
   dateHeader = TTF_RenderText_Blended(fontFSB12, "RELEASE DATE:", headerTextColor);
-
-  infoPanel = (infoPanel_t *)calloc(vGameInfo.size(), sizeof(infoPanel_t));
-
-  /* Dynamic loading of game information */
-  for (std::vector<gameInfo_t>::iterator it = vGameInfo.begin(); it != vGameInfo.end(); ++it) {
-    /* Move to the next node and render its text */
-    infoPanel[i].titleText = TTF_RenderText_Blended(fontFS30, it->gameTitle.c_str(), itemTextColor);
-
-    /* Load the box image */
-    if (it->imageFile[0]) {
-      tempBuf = std::string(BES_FILE_ROOT_DIR "/images/") + it->imageFile;
-    } else
-      tempBuf = "gfx/blank_box.png";
-    //fprintf(stderr, "Image: '%s'\n", tempBuf.c_str());
-    infoPanel[i].box = IMG_Load(tempBuf.c_str());
-
-    /* Render the genre text */
-    if (!it->genreText[0].empty()) {
-      tempBuf = it->genreText[0];
-      if (!it->genreText[1].empty()) {
-        tempBuf += "/";
-        tempBuf += it->genreText[1];
-      }
-    } else
-      tempBuf = "None Listed";     
-    infoPanel[i].genreText = TTF_RenderText_Blended(fontFS16, tempBuf.c_str(), itemTextColor);
-
-    /* Render the release date text */
-    infoPanel[i].dateText = TTF_RenderText_Blended(fontFS16, it->dateText.c_str(), itemTextColor);
-
-    /* Render the description text */
-    if ( it->infoText[0].empty() &&
-      it->infoText[1].empty() &&
-      it->infoText[2].empty() &&
-      it->infoText[3].empty() &&
-      it->infoText[4].empty() )
-      infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, "No description available.", itemTextColor);
-    else
-    {
-      infoPanel[i].itemText[0] = TTF_RenderText_Blended(fontFS16, it->infoText[0].c_str(), itemTextColor);
-      infoPanel[i].itemText[1] = TTF_RenderText_Blended(fontFS16, it->infoText[1].c_str(), itemTextColor);
-      infoPanel[i].itemText[2] = TTF_RenderText_Blended(fontFS16, it->infoText[2].c_str(), itemTextColor);
-      infoPanel[i].itemText[3] = TTF_RenderText_Blended(fontFS16, it->infoText[3].c_str(), itemTextColor);
-      infoPanel[i].itemText[4] = TTF_RenderText_Blended(fontFS16, it->infoText[4].c_str(), itemTextColor);
-    } /* Description if-else */
-    i++;
-  } /* Node for loop */
 }
 
-void renderGameInfo(SDL_Surface *screen, const uint32_t i) 
+static void loadGameInfo(const uint32_t index)
 {
-  int x = 0;
+  uint8_t i = 0;
+  bool empty = true;
+  std::string tempBuf;
+
+  loadedIndex = index;
+
+  /* Clear out the infoPanel surfaces */
+  if (infoPanel.box) SDL_FreeSurface(infoPanel.box);
+  if (infoPanel.genreText) SDL_FreeSurface(infoPanel.genreText);
+  if (infoPanel.dateText) SDL_FreeSurface(infoPanel.dateText);
+  if(infoPanel.titleText) SDL_FreeSurface(infoPanel.titleText);
+  for (i=0; i < NUM_TEXT_LINES; i++)
+    if (infoPanel.itemText[i]) SDL_FreeSurface(infoPanel.itemText[i]);
+  memset(&infoPanel, 0, sizeof (infoPanel));  
+
+  /* Check to make sure the index is valid */
+  if (index >= vGameInfo.size()) {
+    fprintf(stderr, "ERROR: loadGameInfo() failed with index %u\n", index);
+    return;
+  }
+
+  /* Render title text */
+  infoPanel.titleText = TTF_RenderText_Blended(fontFS30, vGameInfo[index].gameTitle.c_str(), itemTextColor);
+
+  /* Load the box image */
+  if (!vGameInfo[index].imageFile.empty()) {
+    tempBuf = std::string(BES_FILE_ROOT_DIR "/images/") + vGameInfo[index].imageFile;
+  } else
+    tempBuf = "gfx/blank_box.png";
+  //fprintf(stderr, "Image: '%s'\n", tempBuf.c_str());
+  infoPanel.box = IMG_Load(tempBuf.c_str());
+
+  /* Render the genre text */
+  if (!vGameInfo[index].genreText[0].empty()) {
+    tempBuf = vGameInfo[index].genreText[0];
+    if (!vGameInfo[index].genreText[1].empty()) {
+      tempBuf += "/";
+      tempBuf += vGameInfo[index].genreText[1];
+    }
+  } else
+    tempBuf = "None Listed";     
+  infoPanel.genreText = TTF_RenderText_Blended(fontFS16, tempBuf.c_str(), itemTextColor);
+
+  /* Render the release date text */
+  infoPanel.dateText = TTF_RenderText_Blended(fontFS16, vGameInfo[index].dateText.c_str(), itemTextColor);
+
+  /* Render the description text */
+  for (i = 0; i < NUM_TEXT_LINES; i++)
+    if (!vGameInfo[index].infoText[i].empty()) empty = false;
+  if (empty)
+    infoPanel.itemText[0] = TTF_RenderText_Blended(fontFS16, "No description available.", itemTextColor);
+  else {
+    for (i=0; i < NUM_TEXT_LINES; i++)
+      infoPanel.itemText[i] = TTF_RenderText_Blended(fontFS16, vGameInfo[index].infoText[i].c_str(), itemTextColor);
+  } /* Description if-else */
+
+}
+
+void renderGameInfo(SDL_Surface *screen, const uint32_t index) 
+{
+  uint8_t i = 0;
+
+  if (index != loadedIndex)
+    loadGameInfo(index);
+
   SDL_FillRect(screen, &backgroundRect, 0x18E3);
-  SDL_BlitSurface(infoPanel[i].titleText, NULL, screen, &titleDstRect);
-  SDL_BlitSurface(infoPanel[i].box, NULL, screen, &boxDstRect); 
+  if (infoPanel.titleText)
+    SDL_BlitSurface(infoPanel.titleText, NULL, screen, &titleDstRect);
+  if (infoPanel.box)
+    SDL_BlitSurface(infoPanel.box, NULL, screen, &boxDstRect); 
   SDL_BlitSurface(genreHeader, NULL, screen, &genreHeaderDstRect);
-  SDL_BlitSurface(infoPanel[i].genreText, NULL, screen, &genreTextDstRect);
+  if (infoPanel.genreText)
+    SDL_BlitSurface(infoPanel.genreText, NULL, screen, &genreTextDstRect);
   SDL_BlitSurface(dateHeader, NULL, screen, &dateHeaderDstRect);
-  SDL_BlitSurface(infoPanel[i].dateText, NULL, screen, &dateTextDstRect);
+  if (infoPanel.dateText)
+    SDL_BlitSurface(infoPanel.dateText, NULL, screen, &dateTextDstRect);
 
   tempRect.x = textDstRect.x;
   tempRect.y = textDstRect.y;
-  for (x=0; x < NUM_TEXT_LINES; x++) {
-    tempRect.y = textDstRect.y + (20 * x); 
-    SDL_BlitSurface(infoPanel[i].itemText[x], NULL, screen, &tempRect);
+  for (i=0; i < NUM_TEXT_LINES; i++) {
+    if (infoPanel.itemText[i]) {
+      tempRect.y = textDstRect.y + (20 * i);
+      SDL_BlitSurface(infoPanel.itemText[i], NULL, screen, &tempRect);
+    }
   }
 }
 
