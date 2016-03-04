@@ -424,9 +424,7 @@ uint32_t doPauseGui(const char *romname, const platformType_t platform)
 						temp = BES_FILE_ROOT_DIR "/" BES_SAVE_DIR "/snes/";
 						temp += romname;
 						temp += ".000";
-						fprintf(stderr, "AWH: Save '%s'\n", temp.c_str());
 						S9xFreezeGame(temp.c_str());
-						fprintf(stderr, "After S9xFreezeGame()\n");
 						fdfile = open(temp.c_str(), O_RDWR);
 						if (fdfile > 0)
 						{
@@ -539,8 +537,7 @@ void loadScreenshot(const char *romname, const int platform) {
 	temp += romname;
 	temp += ".png";
 
-	//if (snapshotImage) SDL_FreeSurface(snapshotImage);
-	fprintf(stderr, "loadSnapshot(%s), '%s'\n", romname, temp.c_str());
+	//fprintf(stderr, "loadSnapshot(%s), '%s'\n", romname, temp.c_str());
 	tempSurface = IMG_Load(temp.c_str());
 	if (tempSurface) {
 		snapshotImage = SDL_ConvertSurface(tempSurface, format, 0);
@@ -593,7 +590,7 @@ void saveScreenshot(const char *romname, const int platform) {
 	}
 	imagePath = dirPath + "/" + romname + ".png";
 
-	fprintf(stderr, "saveScreenshot(%s), '%s'\n", romname, imagePath.c_str());
+	//fprintf(stderr, "saveScreenshot(%s), '%s'\n", romname, imagePath.c_str());
 	format = screen512->format;
 	switch(texToUse) {
 		case TEXTURE_256:
@@ -631,7 +628,7 @@ void saveScreenshot(const char *romname, const int platform) {
 	SDL_FreeSurface(snapshotImage);
 }
 
-void checkForSnapshot(const char *romname, const int platform,
+int checkForSnapshot(const char *romname, const int platform,
 	SDL_Surface *snapshot, const uint16_t width, const uint16_t height)
 {
 	struct stat fileinfo;
@@ -667,9 +664,8 @@ void checkForSnapshot(const char *romname, const int platform,
 	}
 	if (stat(temp.c_str(), &fileinfo))
 	{
-		fprintf(stderr, "Error stat-ing snapshot (ROM) '%s'\n", temp.c_str());
 		snapshotAvailable = 0;
-		return;			
+		return 0;			
 	}
 
 	/* Check for a screen snapshot */
@@ -687,29 +683,27 @@ void checkForSnapshot(const char *romname, const int platform,
 			break;
 		default:
 			snapshotAvailable = 0;
-			return;
+			return 0;
 	}
 	temp += romname;
 	temp += ".png";
 
-	if (stat(temp.c_str(), &fileinfo))
+	if (!stat(temp.c_str(), &fileinfo))
 	{
-		fprintf(stderr, "Error stat-ing snapshot (image): '%s'\n", temp.c_str());
-	} else {
 		/* Try to load the screen snapshot */
 		tempSurface = IMG_Load(temp.c_str());
 		if (!tempSurface)
 		{
 			fprintf(stderr, "Error loading snapshot (image)\n");
-			return;
+			return 0;
 		}
-
-		resizeImage(tempSurface, tinySnapshotImage, width, height);
+		resizeImage(tempSurface, snapshot, width, height);
 		SDL_FreeSurface(tempSurface);    
 	}
+	return 1;
 }
 
-void resizeImage(SDL_Surface *tempImage, SDL_Surface *tinySnapshotImage, 
+void resizeImage(SDL_Surface *tempImage, SDL_Surface *tinyImage, 
 	const uint16_t width, const uint16_t height) {
 
 	float xStep, yStep;
@@ -717,9 +711,9 @@ void resizeImage(SDL_Surface *tempImage, SDL_Surface *tinySnapshotImage,
 	uint32_t dstRow, dstCol;
 	SDL_Surface *snapshotImage;
 
-	snapshotImage = SDL_ConvertSurface(tempImage, screen512->format, 0);		
+	snapshotImage = SDL_ConvertSurface(tempImage, screen512->format, 0);
 	SDL_LockSurface(snapshotImage);
-	SDL_LockSurface(tinySnapshotImage);
+	SDL_LockSurface(tinyImage);
 	/* Shrink the tempImage to width x height size */
 	xStep = snapshotImage->w / ((float)width);
 	yStep = snapshotImage->h / ((float)height);
@@ -728,15 +722,15 @@ void resizeImage(SDL_Surface *tempImage, SDL_Surface *tinySnapshotImage,
 		srcPixel = (uint16_t *)snapshotImage->pixels;
 		srcPixel += (int)(dstRow * yStep) * 
 			(snapshotImage->pitch / 2); 
-		dstPixel = (uint16_t *)tinySnapshotImage->pixels;
-		dstPixel += (dstRow * tinySnapshotImage->pitch / 2);
+		dstPixel = (uint16_t *)tinyImage->pixels;
+		dstPixel += (dstRow * tinyImage->pitch / 2);
 		           
 		for (dstCol = 0; dstCol < width; dstCol++)
 		{                 
 			*dstPixel++ = *(srcPixel + (int)(dstCol * xStep));
 		}                 
 	}
-	SDL_UnlockSurface(tinySnapshotImage);
+	SDL_UnlockSurface(tinyImage);
 	SDL_UnlockSurface(snapshotImage);
 
 	SDL_FreeSurface(snapshotImage);

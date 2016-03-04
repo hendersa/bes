@@ -507,13 +507,15 @@ void *loadingThreadFunc(void *)
 
   loadFonts();
   loadGameConfig();
+  loadGameDatabase();
   loadInstruct();
   loadGameLists();
   initGameInfo();
   loadAudio();
   loadPauseGui();
   loadGBAGui();
-
+  if (vGameInfo.size() == 0)
+    loadNoGamesGui();
   pthread_exit(0);
 }
 
@@ -533,6 +535,18 @@ int doGui(void) {
   /* Get the screen set up again */
   EGLDestSize(fbscreen->w, fbscreen->h);
   EGLSrcSizeGui(720, 480, guiSize);
+  done = 0;
+
+  if (vGameInfo.size() == 0)
+  {
+    SDL_FillRect(screen, NULL, 0x0);
+    SDL_UpdateRect(screen, 0, 0, 0, 0);
+    doNoGamesGui();
+    guiQuit = 1;
+    done = 1;
+    return 0;
+  }
+
   SDL_BlitSurface(gradient, NULL, screen, &gradientRect);
   SDL_BlitSurface(logo, NULL, screen, &logoRect);
 
@@ -540,7 +554,6 @@ int doGui(void) {
   BESResetJoysticks();
 
   /* Get SOMETHING on the screen ASAP */
-  done = 0;
   SDL_FillRect(screen, NULL, 0x0);
   SDL_BlitSurface(gradient, NULL, screen, &gradientRect);
   SDL_BlitSurface(logo, NULL, screen, &logoRect);
@@ -556,6 +569,7 @@ int doGui(void) {
       renderGameInfo(screen, currentSelectedGameIndex());
       renderInstruct(screen, BESControllerPresent[0]);
     }
+
 #if 0 /* CAPE_LCD3 */
     else
       renderVolume(screen);

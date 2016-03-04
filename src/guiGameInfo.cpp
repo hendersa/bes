@@ -43,6 +43,8 @@
 #define X_POS 350
 #define Y_POS 80
 #define NUM_TEXT_LINES 5
+#define TINY_WIDTH 200
+#define TINY_HEIGHT 145
 
 typedef struct {
   SDL_Surface *box;
@@ -67,8 +69,10 @@ static SDL_Rect genreTextDstRect={X_POS + 130, Y_POS + 348, 0, 0};
 static SDL_Rect dateHeaderDstRect={X_POS + 15, Y_POS + 330, 0, 0};
 static SDL_Rect dateTextDstRect={X_POS + 130, Y_POS + 328, 0, 0};
 static SDL_Rect textDstRect = {X_POS + 15, Y_POS + 210, 0, 0};
+
 static SDL_Rect tempRect;
 uint32_t loadedIndex = 1;
+static SDL_Surface *tinySnapshotImage = NULL;
 
 void initGameInfo(void)
 {
@@ -104,12 +108,22 @@ static void loadGameInfo(const uint32_t index)
   infoPanel.titleText = TTF_RenderText_Blended(fontFS30, vGameInfo[index].gameTitle.c_str(), itemTextColor);
 
   /* Load the box image */
-  if (!vGameInfo[index].imageFile.empty()) {
-    tempBuf = std::string(BES_FILE_ROOT_DIR "/images/") + vGameInfo[index].imageFile;
-  } else
-    tempBuf = "gfx/blank_box.png";
-  //fprintf(stderr, "Image: '%s'\n", tempBuf.c_str());
-  infoPanel.box = IMG_Load(tempBuf.c_str());
+  if (tinySnapshotImage) {
+    SDL_FreeSurface(tinySnapshotImage);
+    tinySnapshotImage = NULL;
+  }
+  tinySnapshotImage = SDL_CreateRGBSurface(SDL_SWSURFACE, TINY_WIDTH,
+    TINY_HEIGHT, 16, 0xFC00, 0x07E0, 0x001F, 0);
+  if (checkForSnapshot(vGameInfo[index].romFile.c_str(), 
+    vGameInfo[index].platform, tinySnapshotImage, TINY_WIDTH, TINY_HEIGHT)) {
+      infoPanel.box = tinySnapshotImage;
+      tinySnapshotImage = NULL;
+  } else {
+    //infoPanel.box = IMG_Load("gfx/blank_box.png");
+    infoPanel.box = IMG_Load("gfx/blank_snapshot_large.png");
+    SDL_FreeSurface(tinySnapshotImage);
+    tinySnapshotImage = NULL;
+  }
 
   /* Render the genre text */
   if (!vGameInfo[index].genreText[0].empty()) {
@@ -123,7 +137,10 @@ static void loadGameInfo(const uint32_t index)
   infoPanel.genreText = TTF_RenderText_Blended(fontFS16, tempBuf.c_str(), itemTextColor);
 
   /* Render the release date text */
-  infoPanel.dateText = TTF_RenderText_Blended(fontFS16, vGameInfo[index].dateText.c_str(), itemTextColor);
+  if (!vGameInfo[index].dateText.empty())
+    infoPanel.dateText = TTF_RenderText_Blended(fontFS16, vGameInfo[index].dateText.c_str(), itemTextColor);
+  else
+    infoPanel.dateText = TTF_RenderText_Blended(fontFS16, DEFAULT_DATE_TEXT, itemTextColor);
 
   /* Render the description text */
   for (i = 0; i < NUM_TEXT_LINES; i++)

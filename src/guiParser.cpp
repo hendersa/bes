@@ -71,7 +71,6 @@ static TagInfo_t tagInfo[TAG_LAST] = {
   { "game",    3 }, /* TAG_GAME */
   { "title",   4 }, /* TAG_TITLE */
   { "rom",     4 }, /* TAG_ROM */
-  { "image",   4 }, /* TAG_IMAGE */
   { "year",    4 }, /* TAG_YEAR */
   { "genre",   4 }, /* TAG_GENRE */
   { "text",    4 }, /* TAG_TEXT */
@@ -176,7 +175,6 @@ startElement(void *userData, const char *name, const char **atts)
           /* Defaults for a new info node*/
           currentGame.gameTitle = "";
           currentGame.romFile = "";
-          currentGame.imageFile = "";
           for (x=0; x < MAX_TEXT_LINES; x++)
             currentGame.infoText[x] = "";
           currentGame.dateText.assign(DEFAULT_DATE_TEXT);
@@ -286,18 +284,6 @@ endElement(void *userData, const char *name)
             currentGame.romFile = workingBuf;
             definedTagFlag[i] = 1;
             break;
-
-          case TAG_IMAGE:
-            if (definedTagFlag[i])
-            {
-              fprintf(stderr, "ERROR: Image already defined for game\n");
-              break;
-            }
-            //fprintf(stderr, "Copying imageFile '%s' into node\n", workingBuf);
-            currentGame.imageFile.assign(workingBuf);
-            definedTagFlag[i] = 1;
-            break;
-
           case TAG_YEAR:
             if (definedTagFlag[i])
             {

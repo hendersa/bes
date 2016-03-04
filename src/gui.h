@@ -166,7 +166,6 @@ typedef enum {
   TAG_GAME = TAG_GAME_FIRST,
   TAG_TITLE,
   TAG_ROM,
-  TAG_IMAGE,
   TAG_YEAR,
   /* There can be multiple of these per "game" tag */
   TAG_GENRE,
@@ -236,8 +235,6 @@ typedef struct _gameInfo {
   std::string gameTitle;
   /* Filename of the ROM image */
   std::string romFile;
-  /* Filename of the image of the game's box */
-  std::string imageFile;
   /* Lines of text that describe the game */
   std::string infoText[MAX_TEXT_LINES];
   /* Four digit year the game was released */
@@ -317,7 +314,7 @@ enum {
 /* guiPauseDlg.cpp */
 extern void loadPauseGui(void);
 extern uint32_t doPauseGui(const char *romname, const platformType_t platform);
-extern void checkForSnapshot(const char *romname, const int platform,
+extern int checkForSnapshot(const char *romname, const int platform,
 	SDL_Surface *snapshot, const uint16_t width, const uint16_t height);
 typedef enum {
   PAUSE_NONE = 0, /* No special pause activity */
@@ -328,6 +325,13 @@ typedef enum {
 } pauseState_t;
 extern pauseState_t BESPauseState;
 extern void *tex256buffer, *tex512buffer;
+
+/* guiDatabase.cpp */
+extern bool loadGameDatabase(void);
+
+/* guiNoGamesDlg.cpp */
+extern void loadNoGamesGui(void);
+extern uint32_t doNoGamesGui(void);
 
 #endif /* __GUI_H__ */
 
