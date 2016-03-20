@@ -39,44 +39,7 @@ SDL_Rect guiPiece[TOTAL_PIECES] = {
 };
 guiSize_t guiSize;
 
-/* Gamepad maps to keys: L, R, A, B, X, Y, Select, Start, Pause */
-static SDLKey gamepadButtonKeyMap[2][9] = {
-  {SDLK_a, SDLK_s, SDLK_z, SDLK_x,
-#if !defined(BUILD_SNES)
-    SDLK_UNKNOWN, SDLK_UNKNOWN,
-#else
-    SDLK_d, SDLK_c,
-#endif /* BUILD_SNES */ 
-    SDLK_BACKSPACE, SDLK_RETURN, SDLK_n},
-  {SDLK_j, SDLK_k, SDLK_m, SDLK_COMMA, SDLK_l, 
-    SDLK_SEMICOLON, SDLK_PERIOD, SDLK_SLASH, SDLK_n}
-};
-static SDLKey gamepadAxisKeyMap[NUM_JOYSTICKS][2][2] = {
-  /* Gamepad 0 */
-  {
-    /* Axis 0 (up/down) */
-    {SDLK_UP, SDLK_DOWN},
-    /* Axis 1 (left/right) */
-    {SDLK_LEFT, SDLK_RIGHT}
-  },
-  /* Gamepad 1 */
-  {
-    /* Axis 0 (up/down) */
-    {SDLK_g, SDLK_b},
-    /* Axis 1 (left/right) */
-    {SDLK_v, SDLK_h},
-  }
-};
-
-static SDLKey gamepadAxisLastActive[2][2] = {
-    /* Gamepad 0 */
-    {SDLK_UNKNOWN, SDLK_UNKNOWN},
-    /* Gamepad 1 */
-    {SDLK_UNKNOWN, SDLK_UNKNOWN}
-};
-
 static int i, retVal, done;
-uint32_t BESPauseComboCurrent = 0;
 
 #if !defined(BUILD_SNES)
 bool guiQuit;
@@ -90,29 +53,6 @@ SDL_Surface *screen256, *screen512, *screenPause;
 static SDL_Surface *screen;
 SDL_Surface *fbscreen;
 
-#if defined(BEAGLEBONE_BLACK)
-static const char *joystickPath[NUM_JOYSTICKS*2] = {
-  /* USB device paths for gamepads plugged into the USB host port */
-  "/dev/input/by-path/platform-musb-hdrc.1.auto-usb-0:1:1.0-joystick",
-  "DUMMY",
-  /* USB device paths for gamepads plugged into a USB hub */
-  "/dev/input/by-path/platform-musb-hdrc.1.auto-usb-0:1.1:1.0-joystick",
-  "/dev/input/by-path/platform-musb-hdrc.1.auto-usb-0:1.2:1.0-joystick" };
-#else
-static const char *joystickPath[NUM_JOYSTICKS] = {
-  "/dev/input/by-path/pci-0000:02:00.0-usb-0:2.1:1.0-joystick", 
-  "/dev/input/by-path/pci-0000:02:00.0-usb-0:2.2:1.0-joystick" };
-#endif
-static SDL_Joystick *joystick[NUM_JOYSTICKS] = {NULL, NULL};
-int32_t BESDeviceMap[NUM_JOYSTICKS] = {-1, -1};
-uint32_t BESControllerPresent[NUM_JOYSTICKS] = {0, 0};
- 
-
-#define JOYSTICK_PLUGGED 1
-#define JOYSTICK_UNPLUGGED 0
-
-/* Bitmask of which joysticks are plugged in (1) and which aren't (0) */
-static int joystickState = 0;
 #if !defined (BUILD_SNES)
 static int elapsedTime;
 static struct timeval startTime, endTime;
@@ -121,188 +61,9 @@ static int menuPressDirectionStep = 0;
 int volumePressDirection = 0;
 #endif /* BUILD_SNES */
 
-uint16_t totalGames;
 bool audioAvailable = true;
 uint8_t currentVolume = 64; // AWH32;
 int volumeOverlayCount;
-
-void BESResetJoysticks(void) {
-  joystickState = 0;
-  BESCheckJoysticks();
-}
-
-void BESCheckJoysticks(void) {
-  bool update = false;
-  bool restartJoysticks = false;
-  int oldJoystickState = joystickState;
-  joystickState = 0;
-  char tempBuf[128];
-
-  /* Check if the joysticks currently exist */
-#if defined(BEAGLEBONE_BLACK)
-  for (i=0; i < (NUM_JOYSTICKS*2); i++) {
-#else
-  for (i=0; i < NUM_JOYSTICKS; i++) {
-#endif
-    update = false;
-    retVal = readlink(joystickPath[i], tempBuf, sizeof(tempBuf)-1);
-    if ((retVal == -1) /* No joystick */ && 
-      ((oldJoystickState >> i) & 0x1) /* Joystick was plugged in */ )
-    {
-      update = true;
-      restartJoysticks = true;
-      fprintf(stderr, "Player %d Joystick has been unplugged\n", i+1);
-    }
-    else if ((retVal != -1) /* Joystick exists */ &&
-      !((oldJoystickState >> i) & 0x1) /* Joystick was not plugged in */ ) 
-    {
-      joystickState |= (JOYSTICK_PLUGGED << i); /* Joystick is now plugged in */
-      update = true;
-      restartJoysticks = true;
-      fprintf(stderr, "Player %d Joystick has been plugged in\n", i+1);
-    }
-    else 
-      joystickState |= ((oldJoystickState >> i) & 0x1) << i;
-
-    if (update) {
-#if defined(BEAGLEBONE_BLACK)
-    if (retVal != -1) {
-      /* Are we updating the gamepad in the USB host port? */
-      if (i < NUM_JOYSTICKS) {
-        BESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
-        BESControllerPresent[i] = 1;
-      /* Are we updating gamepads plugged into a USB hub? */
-      } else {
-        BESDeviceMap[tempBuf[retVal - 1] - '0'] = (i-NUM_JOYSTICKS);
-        BESControllerPresent[(i-NUM_JOYSTICKS)] = 1;
-      }     
-    }
-    else
-    {
-      /* Are we updating the gamepad in the USB host port? */
-      if (i < NUM_JOYSTICKS) {
-        BESDeviceMap[i] = -1;
-        BESControllerPresent[i] = 0;
-      /* Are we updating gamepads plugged into a USB hub? */
-      } else {
-        BESDeviceMap[(i-NUM_JOYSTICKS)] = -1;
-        BESControllerPresent[(i-NUM_JOYSTICKS)] = 0;
-      }
-    }
-#else
-    if (retVal != -1) {
-      BESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
-      BESControllerPresent[i] = 1;
-    }
-    else {
-      BESDeviceMap[i] = -1;
-      BESControllerPresent[i] = 0;
-    }
-#endif
-    } /* End "update" check */
-  }
-
-  /* Restart the joystick subsystem */
-  if (restartJoysticks) {
-    /* Shut down the joystick subsystem */
-    SDL_QuitSubSystem(SDL_INIT_JOYSTICK);
-
-    /* Turn the joystick system back on if we have at least one joystick */
-    if (joystickState) {
-      SDL_InitSubSystem(SDL_INIT_JOYSTICK);
-      for (i=0; i < NUM_JOYSTICKS; i++) {
-        joystick[i] = SDL_JoystickOpen(i);
-      }
-      SDL_JoystickEventState(SDL_ENABLE);
-    }
-  }
-}
-
-/* Turn gamepad events into keyboard events */
-void handleJoystickEvent(const SDL_Event *event)
-{
-  SDL_Event keyEvent;
-  int button = 0, axis = 0, gamepad = 0;
-
-  switch(event->type) {
-    case SDL_JOYBUTTONDOWN:
-    case SDL_JOYBUTTONUP:
-      if (event->type == SDL_JOYBUTTONDOWN) keyEvent.type = SDL_KEYDOWN;
-      else keyEvent.type = SDL_KEYUP;
-      keyEvent.key.keysym.sym = SDLK_UNKNOWN;
-      keyEvent.key.keysym.mod = KMOD_NONE;
-      for (gamepad = 0; gamepad < 2; gamepad++)
-      {
-        if (BESDeviceMap[event->jbutton.which] == gamepad)
-        {
-          for (button = 0; button < (TAG_LAST_CONTROL - TAG_FIRST_BUTTON); button++)
-          {
-            if (event->jbutton.button == BESButtonMap[gamepad][button + (TAG_FIRST_BUTTON - TAG_FIRST_CONTROL)])
-            {
-              keyEvent.key.keysym.sym = 
-                gamepadButtonKeyMap[gamepad][button];
-              if ( !gamepad && BESPauseCombo ) /* Player 1 */
-              {
-                if (keyEvent.type == SDL_KEYDOWN)
-                  BESPauseComboCurrent |= (1 << event->jbutton.button);
-                else
-                  BESPauseComboCurrent &= (1 << event->jbutton.button);
-                if ((BESPauseComboCurrent & BESPauseCombo) == BESPauseCombo)
-                {
-                  keyEvent.key.keysym.sym = SDLK_n;
-                  keyEvent.type = SDL_KEYDOWN;
-                  BESPauseComboCurrent = 0;
-                }
-              }
-              if (keyEvent.type == SDL_KEYDOWN)
-                keyEvent.key.state = SDL_PRESSED;
-              SDL_PushEvent(&keyEvent);
-              return;
-            }
-          } /* End switch */
-        } /* End if */
-      } /* End for loop */
-      break;
-
-    case SDL_JOYAXISMOTION:
-      //fprintf(stderr, "SDL_JOYSAXISMOTION for device %d\n", event->jaxis.which);
-      for (gamepad = 0; gamepad < 2; gamepad++)
-      {
-        if (BESDeviceMap[event->jaxis.which] == gamepad)
-        {
-          for (axis = 0; axis < 2; axis++)
-          {
-            if (BESButtonMap[gamepad][axis] == event->jaxis.axis) 
-            {
-              if (event->jaxis.value < 0) {
-                keyEvent.key.keysym.sym = 
-                  gamepadAxisKeyMap[gamepad][axis][0];
-                keyEvent.type = SDL_KEYDOWN;
-		keyEvent.key.state = SDL_PRESSED;
-                gamepadAxisLastActive[gamepad][axis] = 
-                  gamepadAxisKeyMap[gamepad][axis][0];
-              } else if (event->jaxis.value > 0) {
-                keyEvent.key.keysym.sym = 
-                  gamepadAxisKeyMap[gamepad][axis][1];
-                keyEvent.type = SDL_KEYDOWN;
-		keyEvent.key.state = SDL_PRESSED;
-                gamepadAxisLastActive[gamepad][axis] = 
-                  gamepadAxisKeyMap[gamepad][axis][1];
-              }
-              else {
-                keyEvent.key.keysym.sym =
-                  gamepadAxisLastActive[gamepad][axis];
-                keyEvent.type = SDL_KEYUP;
-              }
-              SDL_PushEvent(&keyEvent);
-              return;
-            } /* End buttonmap if */
-          } /* End axis for loop */
-        } /* End gamepad if */
-      } /* End gamepad for */
-      break;
-  }
-}
 
 static void quit(int rc)
 {
@@ -506,7 +267,7 @@ void *loadingThreadFunc(void *)
   gradient = IMG_Load("gfx/gradient.png");
 
   loadFonts();
-  loadGameConfig();
+  loadControlDatabase();
   loadGameDatabase();
   loadInstruct();
   loadGameLists();
@@ -529,6 +290,7 @@ int doGui(void) {
   SDL_Event event;
   Uint16 pixel;
   uint8_t frames;
+  bool force = true;
 
   guiQuit = false;
 
@@ -560,14 +322,19 @@ int doGui(void) {
   SDL_UpdateRect(screen, 0, 0, 0, 0);
   startAudio();
 
+  /* In case the player saved a snapshot on the last game, redraw
+    the cached game info panel. */
+  force = true;
+
   while ( !done ) {
     gettimeofday(&startTime, NULL);
 
     renderGameList(screen);
     if (guiSize != GUI_SMALL)
     {
-      renderGameInfo(screen, currentSelectedGameIndex());
+      renderGameInfo(screen, currentSelectedGameIndex(), force);
       renderInstruct(screen, BESControllerPresent[0]);
+      force = false;
     }
 
 #if 0 /* CAPE_LCD3 */
@@ -730,7 +497,6 @@ fprintf(stderr, "SDL_QUIT\n");
   }
   return(currentSelectedGameIndex());
 }
-#endif /* BUILD_SNES */
 
 void shiftSelectedVolumeUp(void) {
   if (currentVolume < 64) {
@@ -757,4 +523,5 @@ void renderVolume(SDL_Surface *surface) {
   }
   volumeOverlayCount--;
 }
+#endif /* BUILD_SNES */
 

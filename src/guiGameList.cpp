@@ -51,6 +51,8 @@ static SDL_Surface *selectOverlay = NULL;
 static SDL_Surface **itemText;
 static SDL_Surface *headerText;
 
+std::vector<gameInfo_t> vGameInfo;
+
 /* Console icons are SNES, NES, GBA, and GBC, in that order */
 static SDL_Surface *consoleIcons = NULL;
 static /*const*/ SDL_Rect consoleIconRect[4] = 
@@ -89,7 +91,7 @@ static void renderSingleTextItem(const uint8_t slot, const uint32_t gameIndex)
   buffer = "      ";
   buffer += vGameInfo[gameIndex].gameTitle;
   itemText[slot] = TTF_RenderText_Blended(itemListFont, buffer.c_str(), itemTextColor);
-  SDL_BlitSurface(consoleIcons, &consoleIconRect[vGameInfo[gameIndex].platform - TAG_FIRST_PLATFORM], itemText[slot], NULL);
+  SDL_BlitSurface(consoleIcons, &consoleIconRect[vGameInfo[gameIndex].platform], itemText[slot], NULL);
 }
 
 static void renderItemListSurface(void)

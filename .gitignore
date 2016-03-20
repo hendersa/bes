@@ -28,4 +28,5 @@ src/snes/sdl/config.info
 src/snes/sdl/config.log
 src/snes/sdl/config.status
 src/snes/sdl/Makefile
+src/snes/autom4te.cache
 

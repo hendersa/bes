@@ -83,7 +83,6 @@ extern guiSize_t guiSize;
 extern void doAudioDlg(void);
 
 /* Map of js0, js1, etc. to the proper joystick (-1 if no joystick) */
-extern int32_t BESDeviceMap[NUM_JOYSTICKS];
 extern void BESResetJoysticks(void);
 extern void BESCheckJoysticks(void);
 extern void handleJoystickEvent(const SDL_Event *event);
@@ -98,9 +97,6 @@ extern int doGui(void);
 #define GPIO_MAP_SIZE 13
 extern uint32_t gpioPinSetup(void);
 extern void gpioEvents(void);
-
-/* guiParser.cpp */
-extern int loadGameConfig(void);
 
 /* guiGameList.cpp */
 extern void loadGameLists(void);
@@ -117,7 +113,7 @@ extern void renderInstruct(SDL_Surface *screen, const uint32_t gamepadPresent);
 
 /* guiGameInfo.cpp */
 extern void initGameInfo(void);
-extern void renderGameInfo(SDL_Surface *screen, const uint32_t index);
+extern void renderGameInfo(SDL_Surface *screen, const uint32_t index, const bool force);
 
 /* gui.cpp */
 extern void renderVolume(const SDL_Surface *surface);
@@ -127,8 +123,10 @@ extern bool audioAvailable;
 
 /* guiAudio.cpp */
 extern void loadAudio(void);
+extern void loadWelcomeAudio(void);
 extern void initAudio(void);
 extern void startAudio(void);
+extern void startWelcomeAudio(void);
 extern void fadeAudio(void);
 extern void playSelectSnd(void);
 extern void playOverlaySnd(void);
@@ -143,91 +141,82 @@ extern void changeVolume(void);
 
 enum {
   PLAYER_INVALID = -1,
-  PLAYER_ONE = 0,
+  PLAYER_FIRST = 0,
+  PLAYER_ONE = PLAYER_FIRST,
   PLAYER_TWO,
-  NUM_PLAYERS
+  PLAYER_LAST = PLAYER_TWO,
+  PLAYER_TOTAL
 };
 
-/* Define the XML tags used in the games.xml */
 typedef enum {
-  /* Start! */
-  TAG_FIRST = 0,
-  /* Root config tag */
-  TAG_CONFIG = TAG_FIRST,
-  /* Platform tags */
-  TAG_FIRST_PLATFORM,
-  TAG_SNES = TAG_FIRST_PLATFORM,
-  TAG_GBA,
-  TAG_NES,
-  TAG_GBC,
-  TAG_LAST_PLATFORM = TAG_GBC,
-  /* Game menu tags */
-  TAG_GAME_FIRST,
-  TAG_GAME = TAG_GAME_FIRST,
-  TAG_TITLE,
-  TAG_ROM,
-  TAG_YEAR,
-  /* There can be multiple of these per "game" tag */
-  TAG_GENRE,
-  TAG_TEXT,
-  TAG_GAME_LAST = TAG_TEXT,
-  /* Controller config tags */
-  TAG_PLAYER1,
-  TAG_PLAYER2,
-  TAG_FIRST_CONTROL,
-  TAG_VAXIS = TAG_FIRST_CONTROL,
-  TAG_HAXIS,
-  TAG_FIRST_BUTTON,
-  TAG_LEFT = TAG_FIRST_BUTTON,
-  TAG_RIGHT,
-  TAG_A,
-  TAG_B,
-  TAG_X,
-  TAG_Y,
-  TAG_SELECT,
-  TAG_START,
-  TAG_PAUSE,
-  TAG_LAST_CONTROL = TAG_PAUSE,
-  /* GPIO control mapping tags */
-  TAG_GPIO,
-  TAG_FIRST_GPIO_CONTROL,
-  TAG_GPIO_GPLEFT = TAG_FIRST_GPIO_CONTROL,
-  TAG_GPIO_GPRIGHT,
-  TAG_GPIO_GPUP,
-  TAG_GPIO_GPDOWN,
-  TAG_GPIO_LEFT,
-  TAG_GPIO_RIGHT,
-  TAG_GPIO_A,
-  TAG_GPIO_B,
-  TAG_GPIO_X,
-  TAG_GPIO_Y,
-  TAG_GPIO_SELECT,
-  TAG_GPIO_START,
-  TAG_GPIO_PAUSE,
-  /* Pause key and key combo */
-  TAG_PAUSE_COMBO,
-  TAG_PAUSE_KEY,
-  /* Done! */
-  TAG_LAST
-} TagUsed_t;
+  BUTTON_INVALID = -1,
+  BUTTON_FIRST = 0,
+  BUTTON_L = BUTTON_FIRST,
+  BUTTON_R,
+  BUTTON_A,
+  BUTTON_B,
+  BUTTON_X,
+  BUTTON_Y,
+  BUTTON_START,
+  BUTTON_SELECT,
+  BUTTON_PAUSE,
+  BUTTON_LAST = BUTTON_PAUSE,
+  BUTTON_TOTAL
+} enumButton_t;
+
+typedef enum {
+  AXIS_INVALID = -1,
+  AXIS_FIRST = 0,
+  AXIS_VERTICAL = AXIS_FIRST,
+  AXIS_HORIZONTAL,
+  AXIS_LAST = AXIS_HORIZONTAL,
+  AXIS_TOTAL
+} enumAxis_t;
+
+typedef enum {
+  AXISSETTING_INVALID = -1,
+  AXISSETTING_FIRST = 0,
+  AXISSETTING_INVERT = AXISSETTING_FIRST,
+  AXISSETTING_DEADZONE,
+  AXISSETTING_LAST = AXISSETTING_DEADZONE,
+  AXISSETTING_TOTAL
+} enumAxisSetting_t;
+
+typedef enum {
+  GPIO_INVALID = -1,
+  GPIO_FIRST = 0,
+  GPIO_GPLEFT = GPIO_FIRST,
+  GPIO_GPRIGHT,
+  GPIO_GPUP,
+  GPIO_GPDOWN,
+  GPIO_LEFT,
+  GPIO_RIGHT,
+  GPIO_A,
+  GPIO_B,
+  GPIO_X,
+  GPIO_Y,
+  GPIO_START,
+  GPIO_SELECT,
+  GPIO_PAUSE,
+  GPIO_LAST = GPIO_PAUSE,
+  GPIO_TOTAL
+} enumGpio_t;
 
 typedef enum {
   PLATFORM_INVALID = -1,
-  PLATFORM_FIRST = TAG_FIRST_PLATFORM,
+  PLATFORM_FIRST = 0,
   PLATFORM_SNES = PLATFORM_FIRST,
   PLATFORM_GBA,
   PLATFORM_NES,
   PLATFORM_GBC,
-  NUM_PLATFORMS
-} platformType_t;
+  PLATFORM_LAST = PLATFORM_GBC,
+  PLATFORM_TOTAL
+} enumPlatform_t;
 
-/* guiParser.cpp */
-extern int loadGameConfig(void);
-/* Eight buttons, one pause, and two axis */
-#define BUTTON_MAP_SIZE 11
-extern uint8_t BESButtonMap[NUM_PLAYERS][BUTTON_MAP_SIZE];
-extern uint8_t BESAxisMap[NUM_PLAYERS][2][2];
-extern uint8_t GPIOButtonMap[GPIO_MAP_SIZE];
+/* besControls.cpp */
+extern uint8_t BESButtonMap[PLAYER_TOTAL][BUTTON_TOTAL + AXIS_TOTAL];
+extern uint8_t BESAxisMap[PLAYER_TOTAL][AXIS_TOTAL][AXISSETTING_TOTAL];
+extern uint8_t GPIOButtonMap[GPIO_TOTAL];
 
 /* Linked list node for game information */
 typedef struct _gameInfo {
@@ -242,7 +231,7 @@ typedef struct _gameInfo {
   /* Short descriptive genre text */
   std::string genreText[MAX_GENRE_TYPES];
   /* Platform this game runs on */
-  platformType_t platform;
+  enumPlatform_t platform;
 } gameInfo_t;
 
 extern std::vector<gameInfo_t> vGameInfo;
@@ -313,7 +302,7 @@ enum {
 
 /* guiPauseDlg.cpp */
 extern void loadPauseGui(void);
-extern uint32_t doPauseGui(const char *romname, const platformType_t platform);
+extern uint32_t doPauseGui(const char *romname, const enumPlatform_t platform);
 extern int checkForSnapshot(const char *romname, const int platform,
 	SDL_Surface *snapshot, const uint16_t width, const uint16_t height);
 typedef enum {
@@ -326,8 +315,10 @@ typedef enum {
 extern pauseState_t BESPauseState;
 extern void *tex256buffer, *tex512buffer;
 
-/* guiDatabase.cpp */
+/* besDatabase.cpp */
 extern bool loadGameDatabase(void);
+extern bool loadControlDatabase(void);
+extern bool loadGPIODatabase(void);
 
 /* guiNoGamesDlg.cpp */
 extern void loadNoGamesGui(void);

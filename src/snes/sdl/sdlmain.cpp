@@ -847,7 +847,7 @@ int main (int argc, char **argv)
 	printf("Entering GUI...\n");
 	/* AWH - Graphics, audio, input setup */
 	doGuiSetup();
-	loadGameConfig();
+	loadControlDatabase();
 	loadPauseGui();
 	printf("Done with GUI...\n");
 	rom_filename = argv[argc-1];

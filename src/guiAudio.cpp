@@ -39,6 +39,7 @@
 #include <SDL/SDL_mixer.h>
 #include "gui.h"
 
+static Mix_Music *welcomeMusic = NULL;
 static Mix_Music *music = NULL;
 static Mix_Chunk *overlaySnd = NULL;
 static Mix_Chunk *selectSnd = NULL;
@@ -68,6 +69,17 @@ void loadAudio(void) {
   changeVolume();
 
   volumeOverlayCount = 0;
+}
+
+void loadWelcomeAudio(void) {
+  welcomeMusic = Mix_LoadMUS("snd/welcome.wav");
+  if (!welcomeMusic) fprintf(stderr, "Unable to load welcome music\n");
+}
+
+void startWelcomeAudio(void) {
+  volumeOverlayCount = 0;
+  changeVolume();
+  Mix_FadeInMusic(welcomeMusic, -1, 2000);
 }
 
 void startAudio(void) {

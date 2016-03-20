@@ -100,6 +100,7 @@ void loadNoGamesGui(void) {
 	menuImage[6] = TTF_RenderText_Blended(fontFSB16, menuText[5],
 		textColor);
 
+	loadWelcomeAudio();
 }
 
 void renderPauseGui(void) {
@@ -214,7 +215,7 @@ uint32_t doNoGamesGui(void)
 	EGLBlitGL(buffer);
 	EGLFlip();
 	usleep(500*1000);
-	startAudio();
+	startWelcomeAudio();
 	playSelectSnd();
 	for(i = 0; i < 35; i++)
 	{

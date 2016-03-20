@@ -412,21 +412,21 @@ fprintf(stderr, "AWH: quit_state = TRUE\n");
 		case SDL_JOYBUTTONDOWN:
 		case SDL_JOYBUTTONUP:
 		case SDL_JOYAXISMOTION:
-#if 1 // AWH
+#if 1 /* AWH - BeagleSNES */
 			handleJoystickEvent(&event);
 #else
 			S9xReportButton(0x80000000 | // joystick button
-					(BESDeviceMap[event.jbutton.which] << 24) | // joystick index
+					(event.jbutton.which << 24) | // joystick index
 					event.jbutton.button, // joystick button code
 					event.type == SDL_JOYBUTTONDOWN); // press or release
 			break;
 
 		case SDL_JOYAXISMOTION:
 			S9xReportAxis(0x80008000 | // joystick axis
-				      (BESDeviceMap[event.jaxis.which] << 24) | // joystick index
+				      (event.jaxis.which << 24) | // joystick index
 				      event.jaxis.axis, // joystick axis
 				      event.jaxis.value); // axis value
-#endif // AWH
+#endif /* AWH - BeagleSNES */
 			break;
 #endif
 /***** Joystick ends *****/

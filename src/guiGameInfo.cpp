@@ -154,11 +154,11 @@ static void loadGameInfo(const uint32_t index)
 
 }
 
-void renderGameInfo(SDL_Surface *screen, const uint32_t index) 
+void renderGameInfo(SDL_Surface *screen, const uint32_t index, const bool force) 
 {
   uint8_t i = 0;
 
-  if (index != loadedIndex)
+  if ((index != loadedIndex) || force)
     loadGameInfo(index);
 
   SDL_FillRect(screen, &backgroundRect, 0x18E3);

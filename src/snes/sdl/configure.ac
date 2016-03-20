@@ -296,6 +296,11 @@ AC_CHECK_LIB(X11, XOpenDisplay,
         AC_MSG_ERROR([X11 library not found]))
 S9XLIBS="$S9XLIBS -lX11"
 
+AC_CHECK_LIB(pthread, pthread_create,
+	AC_SUBST(EGL_LIBS, -lpthread),
+	AC_MSG_ERROR([PThread library not found]))
+S9XLIBS="$S9XLIBS -lpthread"
+
 ###
 
 
