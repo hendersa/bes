@@ -263,7 +263,7 @@ void enableGuiAudio(void)
 
 void *loadingThreadFunc(void *)
 {
-  logo = IMG_Load("gfx/logo_trans.png");
+  logo = IMG_Load("gfx/bes_logo_trans.png");
   gradient = IMG_Load("gfx/gradient.png");
 
   loadFonts();
