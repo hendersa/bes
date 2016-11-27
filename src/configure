@@ -625,7 +625,7 @@ LIBOBJS
 BESLIBS
 BESDEFS
 BESFLGS
-EXPAT_LIBS
+EGL_LIBS
 SDL_MIXER_LIBS
 SDL_IMAGE_LIBS
 SDL_TTF_LIBS
@@ -3360,7 +3360,6 @@ ac_link='$CXX -o conftest$ac_exeext $CXXFLAGS $CPPFLAGS $LDFLAGS conftest.$ac_ex
 ac_compiler_gnu=$ac_cv_cxx_compiler_gnu
 
 
-#BESFLGS="-I../.. -Ilib -I../../lib"
 BESFLGS=""
 BESDEFS=""
 BESLIBS="-ldl"
@@ -3944,6 +3943,7 @@ $as_echo "no" >&6; }
 
 	fi
 
+	BESFLGS="$BESFLGS -I./OGLES -fsigned-char"
 fi
 
 #AC_BES_COMPILER_FLAG([-fno-exceptions],	      [no_exceptions])
@@ -4802,7 +4802,7 @@ fi
 
 if test "x$bes_cv_sdl" = "xyes"; then
   	BESFLGS="$BESFLGS `sdl-config --cflags`"
-	BESLIBS="$BESLIBS `sdl-config --libs` -lGLESv1_CM -lEGL -lX11 -lpthread"
+	BESLIBS="$BESLIBS `sdl-config --libs` -lX11 -lpthread"
 else
 	as_fn_error $? "SDL is required." "$LINENO" 5
 fi
@@ -4829,14 +4829,6 @@ if test "x$ac_cv_header_SDL_SDL_mixer_h" = xyes; then :
 
 else
   as_fn_error $? "SDL_mixer headers not found" "$LINENO" 5
-fi
-
-
-ac_fn_cxx_check_header_mongrel "$LINENO" "expat.h" "ac_cv_header_expat_h" "$ac_includes_default"
-if test "x$ac_cv_header_expat_h" = xyes; then :
-
-else
-  as_fn_error $? "Expat headers not found" "$LINENO" 5
 fi
 
 
@@ -4977,13 +4969,13 @@ fi
 
 BESLIBS="$BESLIBS -lSDL_mixer"
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for XML_ParserCreate in -lexpat" >&5
-$as_echo_n "checking for XML_ParserCreate in -lexpat... " >&6; }
-if ${ac_cv_lib_expat_XML_ParserCreate+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for eglGetDisplay in -lEGL" >&5
+$as_echo_n "checking for eglGetDisplay in -lEGL... " >&6; }
+if ${ac_cv_lib_EGL_eglGetDisplay+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lexpat  $LIBS"
+LIBS="-lEGL  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -4993,34 +4985,79 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char XML_ParserCreate ();
+char eglGetDisplay ();
 int
 main ()
 {
-return XML_ParserCreate ();
+return eglGetDisplay ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_expat_XML_ParserCreate=yes
+  ac_cv_lib_EGL_eglGetDisplay=yes
 else
-  ac_cv_lib_expat_XML_ParserCreate=no
+  ac_cv_lib_EGL_eglGetDisplay=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_expat_XML_ParserCreate" >&5
-$as_echo "$ac_cv_lib_expat_XML_ParserCreate" >&6; }
-if test "x$ac_cv_lib_expat_XML_ParserCreate" = xyes; then :
-  EXPAT_LIBS=-lexpat
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_EGL_eglGetDisplay" >&5
+$as_echo "$ac_cv_lib_EGL_eglGetDisplay" >&6; }
+if test "x$ac_cv_lib_EGL_eglGetDisplay" = xyes; then :
+  EGL_LIBS=-lEGL
 
 else
-  as_fn_error $? "Expat library not found" "$LINENO" 5
+  as_fn_error $? "EGL library not found" "$LINENO" 5
 fi
 
-BESLIBS="$BESLIBS -lexpat"
+BESLIBS="$BESLIBS -lEGL"
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for glEnable in -lGLESv1_CM" >&5
+$as_echo_n "checking for glEnable in -lGLESv1_CM... " >&6; }
+if ${ac_cv_lib_GLESv1_CM_glEnable+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lGLESv1_CM  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char glEnable ();
+int
+main ()
+{
+return glEnable ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_GLESv1_CM_glEnable=yes
+else
+  ac_cv_lib_GLESv1_CM_glEnable=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_GLESv1_CM_glEnable" >&5
+$as_echo "$ac_cv_lib_GLESv1_CM_glEnable" >&6; }
+if test "x$ac_cv_lib_GLESv1_CM_glEnable" = xyes; then :
+  EGL_LIBS=-lGLESv1_CM
+
+else
+  as_fn_error $? "GLES library not found" "$LINENO" 5
+fi
+
+BESLIBS="$BESLIBS -lGLESv1_CM"
 
 # Check for headers
 

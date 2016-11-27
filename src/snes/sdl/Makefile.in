@@ -9,7 +9,7 @@ BUILDDIR   = .
 
 OBJECTS    = ../apu/apu.o ../apu/SNES_SPC.o ../apu/SNES_SPC_misc.o ../apu/SNES_SPC_state.o ../apu/SPC_DSP.o ../apu/SPC_Filter.o ../bsx.o ../c4.o ../c4emu.o ../cheats.o ../cheats2.o ../clip.o ../conffile.o ../controls.o ../cpu.o ../cpuexec.o ../cpuops.o ../crosshairs.o ../dma.o ../dsp.o ../dsp1.o ../dsp2.o ../dsp3.o ../dsp4.o ../fxinst.o ../fxemu.o ../gfx.o ../globals.o ../memmap.o ../obc1.o ../ppu.o ../reader.o ../sa1.o ../sa1cpu.o ../screenshot.o ../sdd1.o ../sdd1emu.o ../seta.o ../seta010.o ../seta011.o ../seta018.o ../snapshot.o ../snes9x.o ../spc7110.o ../srtc.o ../tile.o ../filter/blit.o
 
-OBJECTS	+= sdlmain.o sdlinput.o sdlvideo.o sdlaudio.o eglSetup.o eglTexture.o gpio.o gui.o guiPauseDlg.o savepng.o besControls.o besDatabase.o sqlite3.o
+OBJECTS	+= sdlmain.o sdlinput.o sdlvideo.o sdlaudio.o eglSetup.o eglTexture.o gui.o guiPauseDlg.o savepng.o besControls.o besDatabase.o sqlite3.o pru.o prussdrv.o
 #guiParser.o
 ifdef S9XDEBUGGER
 OBJECTS   += ../debug.o ../fxdbg.o
@@ -30,7 +30,7 @@ endif
 CCC        = @CXX@
 CC         = @CC@
 GASM       = @CXX@
-INCLUDES   = -I. -I.. -I../apu/ -I../unzip/ -I../jma/ -I../filter/ -I../../sqlite/
+INCLUDES   = -I. -I.. -I../apu/ -I../unzip/ -I../jma/ -I../filter/ -I../../sqlite/ -I../.. -I../../pru
 
 CCFLAGS    = @S9XFLGS@ @S9XDEFS@ $(DEFS)
 CFLAGS     = $(CCFLAGS)

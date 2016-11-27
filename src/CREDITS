@@ -1,13 +1,17 @@
-  BeagleSNES - A retrogaming appliance platform for the
-  BeagleBoard-xM and BeagleBone Black platforms.
+  Beagle Enertainment System (BES) - A retrogaming appliance platform 
+  for the BeagleBone Black platforms.
 
-  (c) Copyright 2015 Andrew Henderson (hendersa@icculus.org)
+  (c) Copyright 2016 Andrew Henderson (hendersa@icculus.org)
 
-  BeagleSNES is a GUI front-end that is integrated into the Nestopia and 
-  VBA-M emulators.  Portions of this GUI front end are also integrated 
-  into the SNES9X emulator, along with some hacks that shut off unneeded 
-  functionality and tune the SNES performance for execution on the BBB 
-  and BB-xM platforms. 
+  BES is a GUI front-end that is integrated into the Nestopia and VBA-M 
+  emulators. Portions of this GUI front end are also integrated into the
+  SNES9X emulator, along with some hacks that shut off unneeded 
+  functionality and tune the SNES performance for execution on the BBB. 
+
+  PRUSS reference code
+  (c) Copyright 2012 Texas Instruments Incorporated - http://www.ti.com
+  LICENSED UNDER A REDISTRIBUTION AND ATTRIBUTION LICENSE "AS IS" WITHOUT
+  ANY EXPRESSED OR IMPLIED WARRANTY OR LIABILITIES.
 
   VBA-M - The Nintendo Gameboy/GameboyAdvance (TM) emulator
   (c) Copyright 1999-2003 Forgotten
@@ -20,7 +24,7 @@
   
   Snes9x - Portable Super Nintendo Entertainment System (TM) emulator.
   LICENSED UNDER THE SNES9X FREEWARE LICENSE, READ THE DOCUMENTATION IN
-  THE "snes" DIRECTORY FOR MORE DETAILS.
+  THE "src/snes" DIRECTORY FOR MORE DETAILS.
 
   (c) Copyright 1996 - 2002  Gary Henderson (gary.henderson@ntlworld.com),
                              Jerremy Koot (jkoot@snes9x.com)

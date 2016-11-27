@@ -20,7 +20,7 @@ extern "C" {
 #define TIME_PER_FRAME (1000000 / TARGET_FPS)
 
 #if defined(BEAGLEBONE_BLACK)
-#define BES_FILE_ROOT_DIR "/boot/uboot/bes"
+#define BES_FILE_ROOT_DIR "/home/ubuntu/bes"
 #else
 #define BES_FILE_ROOT_DIR "."
 #endif 
@@ -75,7 +75,6 @@ typedef enum {
 extern guiSize_t guiSize;
 
 
-#define NUM_JOYSTICKS 2
 #define PAUSE_GUI_WIDTH 300
 #define PAUSE_GUI_HEIGHT 220
 
@@ -83,20 +82,14 @@ extern guiSize_t guiSize;
 extern void doAudioDlg(void);
 
 /* Map of js0, js1, etc. to the proper joystick (-1 if no joystick) */
-extern void BESResetJoysticks(void);
-extern void BESCheckJoysticks(void);
-extern void handleJoystickEvent(const SDL_Event *event);
-extern uint32_t BESControllerPresent[NUM_JOYSTICKS];
-extern uint32_t BESPauseCombo;
+//extern void BESResetJoysticks(void);
+//extern void BESCheckJoysticks(void);
+//extern void handleJoystickEvent(const SDL_Event *event);
+//extern uint32_t BESControllerPresent[NUM_JOYSTICKS];
+//extern uint32_t BESPauseCombo;
 
 extern int doGuiSetup(void);
 extern int doGui(void);
-
-/* gpio.cpp */
-/* Four axis buttons, eight controller buttons, one pause */
-#define GPIO_MAP_SIZE 13
-extern uint32_t gpioPinSetup(void);
-extern void gpioEvents(void);
 
 /* guiGameList.cpp */
 extern void loadGameLists(void);
@@ -139,69 +132,6 @@ extern void changeVolume(void);
 #define MAX_GENRE_TYPES 2
 #define MAX_TEXT_LINES 5
 
-enum {
-  PLAYER_INVALID = -1,
-  PLAYER_FIRST = 0,
-  PLAYER_ONE = PLAYER_FIRST,
-  PLAYER_TWO,
-  PLAYER_LAST = PLAYER_TWO,
-  PLAYER_TOTAL
-};
-
-typedef enum {
-  BUTTON_INVALID = -1,
-  BUTTON_FIRST = 0,
-  BUTTON_L = BUTTON_FIRST,
-  BUTTON_R,
-  BUTTON_A,
-  BUTTON_B,
-  BUTTON_X,
-  BUTTON_Y,
-  BUTTON_START,
-  BUTTON_SELECT,
-  BUTTON_PAUSE,
-  BUTTON_LAST = BUTTON_PAUSE,
-  BUTTON_TOTAL
-} enumButton_t;
-
-typedef enum {
-  AXIS_INVALID = -1,
-  AXIS_FIRST = 0,
-  AXIS_VERTICAL = AXIS_FIRST,
-  AXIS_HORIZONTAL,
-  AXIS_LAST = AXIS_HORIZONTAL,
-  AXIS_TOTAL
-} enumAxis_t;
-
-typedef enum {
-  AXISSETTING_INVALID = -1,
-  AXISSETTING_FIRST = 0,
-  AXISSETTING_INVERT = AXISSETTING_FIRST,
-  AXISSETTING_DEADZONE,
-  AXISSETTING_LAST = AXISSETTING_DEADZONE,
-  AXISSETTING_TOTAL
-} enumAxisSetting_t;
-
-typedef enum {
-  GPIO_INVALID = -1,
-  GPIO_FIRST = 0,
-  GPIO_GPLEFT = GPIO_FIRST,
-  GPIO_GPRIGHT,
-  GPIO_GPUP,
-  GPIO_GPDOWN,
-  GPIO_LEFT,
-  GPIO_RIGHT,
-  GPIO_A,
-  GPIO_B,
-  GPIO_X,
-  GPIO_Y,
-  GPIO_START,
-  GPIO_SELECT,
-  GPIO_PAUSE,
-  GPIO_LAST = GPIO_PAUSE,
-  GPIO_TOTAL
-} enumGpio_t;
-
 typedef enum {
   PLATFORM_INVALID = -1,
   PLATFORM_FIRST = 0,
@@ -212,11 +142,6 @@ typedef enum {
   PLATFORM_LAST = PLATFORM_GBC,
   PLATFORM_TOTAL
 } enumPlatform_t;
-
-/* besControls.cpp */
-extern uint8_t BESButtonMap[PLAYER_TOTAL][BUTTON_TOTAL + AXIS_TOTAL];
-extern uint8_t BESAxisMap[PLAYER_TOTAL][AXIS_TOTAL][AXISSETTING_TOTAL];
-extern uint8_t GPIOButtonMap[GPIO_TOTAL];
 
 /* Linked list node for game information */
 typedef struct _gameInfo {

@@ -45,6 +45,8 @@
 #include <fcntl.h>
 #include "gui.h"
 #include "beagleboard.h"
+#include "besKeys.h"
+#include "besControls.h"
 
 static SDL_Surface *audioDlg = NULL;
 
@@ -222,7 +224,7 @@ void doAudioDlg(void)
 		EGLBlitGBAGL(screenPause->pixels, dialogXPos, dialogYPos, scaleX, scaleY);
 		EGLFlip();
 
-		gpioEvents();
+		BESProcessEvents();
 
 		/* Check for events */
 		while ( SDL_PollEvent(&event) ) {
@@ -233,12 +235,12 @@ void doAudioDlg(void)
 				case SDL_JOYBUTTONDOWN:
 				case SDL_JOYBUTTONUP:
 				//case SDL_JOYAXISMOTION:
-					handleJoystickEvent(&event);
+					BESProcessJoystickEvent(&event);
 					break;
 
 				case SDL_KEYDOWN:
 					switch (event.key.keysym.sym) {
-						case SDLK_RETURN:
+						case BES_P1_SE:
 							done = 1;
 							break;
 						default:

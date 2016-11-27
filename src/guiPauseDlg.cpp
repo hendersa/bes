@@ -46,6 +46,8 @@
 #include "gui.h"
 #include "beagleboard.h"
 #include "savepng.h"
+#include "besKeys.h"
+#include "besControls.h"
 
 #define TINY_WIDTH 128
 #define TINY_HEIGHT 96
@@ -310,7 +312,7 @@ uint32_t doPauseGui(const char *romname, const enumPlatform_t platform)
 		EGLBlitPauseGL(screenPause->pixels, dialogXPos, dialogYPos, scaleX, scaleY);
 		EGLFlip();
 
-		gpioEvents();
+		BESProcessEvents();
 
 		/* Check for events */
 		while ( SDL_PollEvent(&event) ) {
@@ -321,20 +323,20 @@ uint32_t doPauseGui(const char *romname, const enumPlatform_t platform)
 				case SDL_JOYBUTTONDOWN:
 				case SDL_JOYBUTTONUP:
 				case SDL_JOYAXISMOTION:
-					handleJoystickEvent(&event);
+					BESProcessJoystickEvent(&event);
 					break;
 
 				case SDL_KEYDOWN:
 					switch (event.key.keysym.sym) {
-						case SDLK_UP:
+						case BES_P1_DU:
 							shiftSelectedItemUp();
 							break;
-						case SDLK_DOWN:
+						case BES_P1_DD:
 							shiftSelectedItemDown();
 							break;
-						case SDLK_r:
+						case BES_DEBUG:
 							forceUnpause = 1;
-						case SDLK_RETURN:
+						case BES_P1_SE:
 							done = 1;
 							break;
 						default:

@@ -79,10 +79,9 @@ if test "x$enable_debug" = "xyes"; then
 	AC_S9X_COMPILER_FLAG([-g],  [g])
 	AC_S9X_COMPILER_FLAG([-O0], [o0])
 else
-	AC_S9X_COMPILER_FLAG([-Ofast], [ofast], [
-		AC_S9X_COMPILER_FLAG([-O3], [o3], [
-			AC_S9X_COMPILER_FLAG([-O2], [o2], [
-				AC_S9X_COMPILER_FLAG([-O1], [o1])])])])
+	AC_S9X_COMPILER_FLAG([-O3], [o3], [
+		AC_S9X_COMPILER_FLAG([-O2], [o2], [
+			AC_S9X_COMPILER_FLAG([-O1], [o1])])])
 	AC_S9X_COMPILER_FLAG([-fomit-frame-pointer], [omit_frame_pointer])
 fi
 
@@ -94,17 +93,16 @@ AC_ARG_ENABLE([neon],
 	[], [enable_neon="no"])
 
 if test "x$enable_neon" != "xno"; then
-	AC_S9X_COMPILER_FLAG(["-mfpu=neon"], [mfpu],
+	AC_S9X_COMPILER_FLAG([-mfpu=neon], [mfpu],
 	[
 		AC_MSG_ERROR(["NEON optimisation flag was not accepted."])
 	])
 # BeagleSNES - Changed "armv7a" to "arm7-a"
-	AC_S9X_COMPILER_FLAG(["-Wa,-march=arm7-a"],		[march])
-	AC_S9X_COMPILER_FLAG(["-fprefetch-loop-arrays"],	[prefetch])
+	AC_S9X_COMPILER_FLAG([-Wa,-march=arm7-a],		[march])
+	AC_S9X_COMPILER_FLAG([-fprefetch-loop-arrays],	[prefetch])
 # BeagleSNES - AWH: BeagleBoard/Bone-specific flags
-	AC_S9X_COMPILER_FLAG(["-mtune=cortex-a8"], [mtune])
-	AC_S9X_COMPILER_FLAG(["-mfloat-abi-hard=hard"], [float-abi-hard])
-	AC_S9X_COMPILER_FLAG(["-fsigned-char"], [signed-char])
+	AC_S9X_COMPILER_FLAG([-mtune=cortex-a8], [mtune])
+	S9XFLGS="$S9XFLGS -mfloat-abi=hard -fsigned-char -I./OGLES"
 # BeagleSNES
 fi
 
@@ -256,15 +254,6 @@ fi
 AC_CHECK_HEADER([SDL/SDL_image.h],[],
 	AC_MSG_ERROR([SDL_image headers not found]))
 
-AC_CHECK_HEADER([expat.h],[],
-	AC_MSG_ERROR([Expat headers not found]))
-
-AC_CHECK_HEADER([GLES/egl.h],[],
-	AC_MSG_ERROR([GLES/egl.h header not found]))
-
-AC_CHECK_HEADER([GLES/gl.h],[],
-	AC_MSG_ERROR([GLES/gl.h header not found]))
-
 # AWH: Check for the libraries to link against
 AC_CHECK_LIB(SDL_ttf, TTF_OpenFont,
 	AC_SUBST(SDL_TTF_LIBS, -lSDL_ttf),
@@ -276,11 +265,6 @@ AC_CHECK_LIB(SDL_image, IMG_Load,
 	AC_MSG_ERROR([SDL_image library not found]))
 S9XLIBS="$S9XLIBS -lSDL_image"
 
-AC_CHECK_LIB(expat, XML_ParserCreate,
-	AC_SUBST(EXPAT_LIBS, -lexpat),
-	AC_MSG_ERROR([Expat library not found]))
-S9XLIBS="$S9XLIBS -lexpat"
-
 AC_CHECK_LIB(EGL, eglGetDisplay,
 	AC_SUBST(EGL_LIBS, -lEGL),
 	AC_MSG_ERROR([EGL library not found]))
@@ -291,15 +275,10 @@ AC_CHECK_LIB(GLESv1_CM, glEnable,
 	AC_MSG_ERROR([GLES library not found]))
 S9XLIBS="$S9XLIBS -lGLESv1_CM"
 
-AC_CHECK_LIB(X11, XOpenDisplay,
-	AC_SUBST(X11_LIBS, -lX11),
-        AC_MSG_ERROR([X11 library not found]))
-S9XLIBS="$S9XLIBS -lX11"
-
 AC_CHECK_LIB(pthread, pthread_create,
 	AC_SUBST(EGL_LIBS, -lpthread),
 	AC_MSG_ERROR([PThread library not found]))
-S9XLIBS="$S9XLIBS -lpthread"
+S9XLIBS="$S9XLIBS -lX11 -lpthread"
 
 ###
 

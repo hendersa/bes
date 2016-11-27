@@ -197,7 +197,7 @@
 #endif
 
 #if 1 // AWH
-#include "sdl/gui.h"
+#include "gui.h"
 #endif // AWH
 using namespace	std;
 
@@ -1722,7 +1722,7 @@ void S9xUnmapID (uint32 id)
 bool S9xMapButton (uint32 id, s9xcommand_t mapping, bool poll)
 {
 	int	t;
-fprintf(stderr, "S9xMapButton() id: %d\n", id);
+
 	if (id == InvalidControlID)
 	{
 		fprintf(stderr, "Cannot map InvalidControlID\n");

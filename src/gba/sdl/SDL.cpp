@@ -80,6 +80,7 @@
 #endif
 
 #include "../../gui.h" // AWH
+#include "../../besControls.h" // AWH
 
 extern void remoteInit();
 extern void remoteCleanUp();
@@ -1171,6 +1172,7 @@ void sdlReadBattery()
     sprintf(buffer, "%s.sav", filename);
 #else
   sprintf(buffer, "%s/%s/gb/%s.sav", BES_FILE_ROOT_DIR, BES_SRAM_DIR, filename);
+  fprintf(stderr, "DEBUG: GBA read SRAM: '%s'\n", buffer);
 #endif // AWH
   bool res = false;
 
@@ -1449,9 +1451,9 @@ void sdlPollEvents()
     SDL_PauseAudio(paused);
   }
 
-#if 1 // AWH
-  gpioEvents();
-#endif // AWH
+#if 1 /* BES - AWH */
+  BESProcessEvents();
+#endif /* BES - AWH */
   while(SDL_PollEvent(&event)) {
     switch(event.type) {
     case SDL_QUIT:
@@ -1504,12 +1506,12 @@ void sdlPollEvents()
     case SDL_JOYBUTTONDOWN:
     case SDL_JOYBUTTONUP:
     case SDL_JOYAXISMOTION:
-#if 1 // AWH
-      handleJoystickEvent(&event);
+#if 1 /* BES - AWH */
+      BESProcessJoystickEvent(&event);
       break;
-#endif // AWH
+#endif /* BES - AWH */
     case SDL_KEYDOWN:
-#if 1 // AWH
+#if 1 /* BES - AWH */
       switch(event.key.keysym.sym) {
         case SDLK_n:
           BESPauseState = PAUSE_CACHE;
@@ -1519,11 +1521,11 @@ void sdlPollEvents()
       }
 #else
       inputProcessSDLEvent(event);
-#endif // AWH
+#endif /* BES - AWH */
       break;
     case SDL_KEYUP:
       switch(event.key.keysym.sym) {
-#if 0 // AWH
+#if 0 /* BES - AWH */
       case SDLK_r:
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
@@ -1626,7 +1628,7 @@ void sdlPollEvents()
           systemScreenMessage("Surround on");
         }
         break;
-#endif // AWH
+#endif /* BES - AWH */
       case SDLK_p:
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
@@ -1640,7 +1642,7 @@ void sdlPollEvents()
       case SDLK_ESCAPE:
         emulating = 0;
         break;
-#if 0 // AWH
+#if 0 /* BES - AWH */
       case SDLK_f:
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
@@ -1674,7 +1676,7 @@ void sdlPollEvents()
         }
         debugger = true;
         break;
-#endif // AWH
+#endif /* BES - AWH */
       case SDLK_F1:
       case SDLK_F2:
       case SDLK_F3:
@@ -1705,7 +1707,7 @@ void sdlPollEvents()
           sdlReadState(SLOT_POS_SAVE_BACKUP);
         }
         break;
-#if 0 // AWH
+#if 0 /* BES - AWH */
       case SDLK_1:
       case SDLK_2:
       case SDLK_3:
@@ -1757,9 +1759,9 @@ void sdlPollEvents()
           layerEnable = DISPCNT & layerSettings;
         }
         break;
-#endif // AWH
+#endif /* BES - AWH */
       case SDLK_n:
-#if 0 // AWH
+#if 0 /* BES - AWH */
         if(!(event.key.keysym.mod & MOD_NOCTRL) &&
            (event.key.keysym.mod & KMOD_CTRL)) {
           if(paused)
@@ -1768,7 +1770,7 @@ void sdlPollEvents()
         }
 #else
         pauseNextFrame = true;
-#endif // AWH
+#endif /* BES - AWH */
         break;
       default:
         break;

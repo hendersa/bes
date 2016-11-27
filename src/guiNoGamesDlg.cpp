@@ -46,6 +46,10 @@
 #include "gui.h"
 #include "beagleboard.h"
 #include "savepng.h"
+#include "besKeys.h"
+#include "besControls.h"
+
+extern char ipAddress[20];
 
 static SDL_Surface *pauseGui = NULL;
 
@@ -55,9 +59,12 @@ static const char *menuText[6] = {
   "Welcome to your new Beagle", 
   "Entertainment System! Before",
   "using your system, you must", 
-  "install at least one ROM file.",
-  "Please refer to the manual for", 
-  "ROM installation instructions." }; 
+  "install at least one ROM file via",
+  "the configuration web page at", ""};
+
+  /*"Please refer to the manual for", 
+  "ROM installation instructions." };*/
+   
 static SDL_Surface *menuImage[7] = { 
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL }; 
 static SDL_Rect menuTextPos[7] = { {0,0,0,0}, {0,0,0,0}, {0,0,0,0},
@@ -71,6 +78,7 @@ static void renderPauseGui(void);
 void loadNoGamesGui(void) {
 	SDL_Surface *tempSurface;
 	SDL_PixelFormat *format;
+	std::string ip;
 
 	format = screenPause->format;
 
@@ -97,7 +105,9 @@ void loadNoGamesGui(void) {
 		textColor); 
 	menuImage[5] = TTF_RenderText_Blended(fontFSB16, menuText[4],
 		textColor);
-	menuImage[6] = TTF_RenderText_Blended(fontFSB16, menuText[5],
+	ip = "this URL: http://";
+	ip += ipAddress;
+	menuImage[6] = TTF_RenderText_Blended(fontFSB16, ip.c_str()/*menuText[5]*/,
 		textColor);
 
 	loadWelcomeAudio();
@@ -231,7 +241,7 @@ uint32_t doNoGamesGui(void)
 		if (elapsedTime < (TIME_PER_FRAME / 8))
 			usleep((TIME_PER_FRAME / 8) - elapsedTime);
 	}
- 
+
 	/* Do drawing and animation loop */
 	while (!done) {
 		gettimeofday(&startTime, NULL);
@@ -244,7 +254,7 @@ uint32_t doNoGamesGui(void)
 		EGLBlitPauseGL(screenPause->pixels, dialogXPos, dialogYPos, scaleX, scaleY);
 		EGLFlip();
 
-		gpioEvents();
+		BESProcessEvents();
 
 		/* Check for events */
 		while ( SDL_PollEvent(&event) ) {
@@ -255,12 +265,12 @@ uint32_t doNoGamesGui(void)
 				case SDL_JOYBUTTONDOWN:
 				case SDL_JOYBUTTONUP:
 				case SDL_JOYAXISMOTION:
-					handleJoystickEvent(&event);
+					BESProcessJoystickEvent(&event);
 					break;
 
 				case SDL_KEYDOWN:
 					switch (event.key.keysym.sym) {
-						case SDLK_RETURN:
+						case BES_P1_SE:
 							done = 1;
 							break;
 						default:

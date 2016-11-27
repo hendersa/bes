@@ -204,7 +204,7 @@
 
 #if 1 // AWH - BeagleSNES
 #include <fcntl.h>
-#include "sdl/gui.h"
+#include "gui.h"
 #endif // BeagleSNES
 
 #ifndef SET_UI_COLOR

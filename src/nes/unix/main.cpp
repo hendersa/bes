@@ -65,6 +65,7 @@ extern "C" {
 #include <unistd.h>
 #include <fcntl.h>
 #include "gui.h"
+#include "besControls.h"
 #endif // AWH
 
 using namespace Nes::Api;
@@ -1091,10 +1092,9 @@ static void NST_CALLBACK DoFileIO(void *userData, User::File& file)
 			char tempDir[1024];
 
 			file.GetContent( savedata, savedatasize );
-
 			if (batteryFile.is_open())
 			{
-				batteryFile.write( (const char*) /*AWH savedata*/sramname, savedatasize );
+				batteryFile.write( (const char*) savedata, savedatasize );
 				/* AWH - fsync the SRAM */
 				fd = open(sramname, O_RDWR);
 				fsync(fd);
@@ -1103,8 +1103,10 @@ static void NST_CALLBACK DoFileIO(void *userData, User::File& file)
 					BES_FILE_ROOT_DIR, BES_SRAM_DIR);
 				fd = open(tempDir, O_RDWR);
 				fsync(fd);
-				close(fd);	
+				close(fd);
 			}
+else
+
 			break;
 		}
 
@@ -1303,7 +1305,7 @@ int nes_main(const char *romname)
 						case SDL_JOYBUTTONDOWN:
 						case SDL_JOYBUTTONUP:
 #if 1 // AWH
-							handleJoystickEvent(&event);
+							BESProcessJoystickEvent(&event);
 #else
 							nst_dispatch(cNstPads, event);
 #endif // AWH
@@ -1816,6 +1818,8 @@ void configure_savename( const char* filename )
 #if 1 // AWH - Now do the same for SRAM
 	sprintf(sramname, "%s/%s/nes/%s.sav", BES_FILE_ROOT_DIR,
 		BES_SRAM_DIR, capname);
+	//fprintf(stderr, "DEBUG (NES): SAVE '%s'\n", savename);
+	//fprintf(stderr, "DEBUG (NES): SRAM '%s'\n", sramname);
 #endif // AWH
 
 }

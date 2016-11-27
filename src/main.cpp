@@ -15,6 +15,9 @@
 
 #include <SDL.h>
 #include "gui.h"
+#include "besControls.h"
+
+char ipAddress[20];
 
 int main (int argc, char **argv)
 {
@@ -22,6 +25,17 @@ int main (int argc, char **argv)
 	SDL_Event event;
 
 	printf("Beagle Entertainment System\n");
+
+	memset(ipAddress, 0, sizeof(ipAddress));	
+	printf("argc: %d\n", argc);
+	if (argc == 2)
+		strncpy(ipAddress,argv[1], sizeof(ipAddress)-1);
+
+	if (!strlen(ipAddress))
+		strcpy(ipAddress, "[No IP assigned]");
+
+	printf("IP Address: %s\n", ipAddress);
+	
 	if (doGuiSetup())
 	{
 		fprintf(stderr, "Failure on init, exiting...\n");
@@ -32,8 +46,8 @@ int main (int argc, char **argv)
         doSplashScreen(); /* Splash screen */
         disableGuiAudio();
 
-        /* Set up GPIOs */
-        gpioPinSetup();
+        /* Set up GPIO and PRU inputs */
+        BESControlSetup();
 
 	while(1)
 	{
@@ -78,6 +92,8 @@ int main (int argc, char **argv)
 		while( SDL_PollEvent(&event) );
 		BESPauseComboCurrent = 0;
 	}
+	EGLShutdown();
+	BESControlShutdown();
 	return (0);
 }
 

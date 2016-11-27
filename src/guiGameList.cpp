@@ -384,7 +384,7 @@ void incrementGameListFrame(const uint8_t frameAdvance)
 
       /* Accelerate the overlay's movement at the start and end */
       if ((shiftFrame <= 6.0f) || (shiftFrame >= 28.0f))
-        shiftFrameFactor += 0.1f;
+        shiftFrameFactor += 0.3f;
     } /* End (currentIndex != nextIndex) */
   
     if (shiftFrame >= 38.0f /*(selectOverlay->h - 6)*/) {

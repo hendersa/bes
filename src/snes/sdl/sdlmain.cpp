@@ -846,6 +846,7 @@ int main (int argc, char **argv)
 
 	printf("Entering GUI...\n");
 	/* AWH - Graphics, audio, input setup */
+	setenv("SDL_AUDIODRIVER", "alsa", 1);
 	doGuiSetup();
 	loadControlDatabase();
 	loadPauseGui();

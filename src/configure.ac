@@ -10,7 +10,6 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_LANG([C++])
 
-#BESFLGS="-I../.. -Ilib -I../../lib"
 BESFLGS=""
 BESDEFS=""
 BESLIBS="-ldl"
@@ -102,6 +101,7 @@ if test "x$enable_neon" != "xno"; then
 
 	AC_BES_COMPILER_FLAG(["-Wa,-march=armv7a"],		[march])
 	AC_BES_COMPILER_FLAG(["-fprefetch-loop-arrays"],	[prefetch])
+	BESFLGS="$BESFLGS -I./OGLES -fsigned-char"
 fi
 
 #AC_BES_COMPILER_FLAG([-fno-exceptions],	      [no_exceptions])
@@ -174,7 +174,7 @@ AC_CACHE_VAL([bes_cv_sdl],
 
 if test "x$bes_cv_sdl" = "xyes"; then
   	BESFLGS="$BESFLGS `sdl-config --cflags`"
-	BESLIBS="$BESLIBS `sdl-config --libs` -lGLESv1_CM -lEGL -lX11 -lpthread"
+	BESLIBS="$BESLIBS `sdl-config --libs` -lX11 -lpthread"
 else
 	AC_MSG_ERROR([SDL is required.])
 fi
@@ -186,8 +186,6 @@ AC_CHECK_HEADER([SDL/SDL_image.h],[],
 	AC_MSG_ERROR([SDL_image headers not found]))
 AC_CHECK_HEADER([SDL/SDL_mixer.h],[],
 	AC_MSG_ERROR([SDL_mixer headers not found]))
-AC_CHECK_HEADER([expat.h],[],
-	AC_MSG_ERROR([Expat headers not found]))
 
 # Check for various needed libraries to link against
 AC_CHECK_LIB(SDL_ttf, TTF_OpenFont,
@@ -205,10 +203,15 @@ AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio,
 	AC_MSG_ERROR([SDL_mixer library not found]))
 BESLIBS="$BESLIBS -lSDL_mixer"
 
-AC_CHECK_LIB(expat, XML_ParserCreate,
-	AC_SUBST(EXPAT_LIBS, -lexpat),
-	AC_MSG_ERROR([Expat library not found]))
-BESLIBS="$BESLIBS -lexpat"
+AC_CHECK_LIB(EGL, eglGetDisplay,
+	AC_SUBST(EGL_LIBS, -lEGL),
+	AC_MSG_ERROR([EGL library not found]))
+BESLIBS="$BESLIBS -lEGL"
+
+AC_CHECK_LIB(GLESv1_CM, glEnable,
+	AC_SUBST(EGL_LIBS, -lGLESv1_CM),
+	AC_MSG_ERROR([GLES library not found]))
+BESLIBS="$BESLIBS -lGLESv1_CM"
 
 # Check for headers
 

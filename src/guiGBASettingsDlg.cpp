@@ -45,6 +45,8 @@
 #include <fcntl.h>
 #include "gui.h"
 #include "beagleboard.h"
+#include "besKeys.h"
+#include "besControls.h"
 
 int gbaForceSettings;
 
@@ -237,7 +239,7 @@ void doGBAGui(void)
 		EGLBlitGBAGL(screenPause->pixels, dialogXPos, dialogYPos, scaleX, scaleY);
 		EGLFlip();
 
-		gpioEvents();
+		BESProcessEvents();
 
 		/* Check for events */
 		while ( SDL_PollEvent(&event) ) {
@@ -248,19 +250,18 @@ void doGBAGui(void)
 				case SDL_JOYBUTTONDOWN:
 				case SDL_JOYBUTTONUP:
 				case SDL_JOYAXISMOTION:
-fprintf(stderr, "Handling joystick event in GBA dialog\n");
-					handleJoystickEvent(&event);
+					BESProcessJoystickEvent(&event);
 					break;
 
 				case SDL_KEYDOWN:
 					switch (event.key.keysym.sym) {
-						case SDLK_UP:
+						case BES_P1_DU:
 							shiftSelectedItemUp();
 							break;
-						case SDLK_DOWN:
+						case BES_P1_DD:
 							shiftSelectedItemDown();
 							break;
-						case SDLK_RETURN:
+						case BES_P1_SE:
 							done = 1;
 							break;
 						default:

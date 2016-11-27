@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "sqlite3.h"
 #include "gui.h"
+#include "besControls.h"
 
 #define DATABASE_NAME "games.db"
 
@@ -50,21 +51,21 @@ bool loadControlDatabase(void) {
       player = (sqlite3_column_int(dbStatement, 15) - 1);
       /* L, R, A, B, X, Y, Select, Start, and Pause button numbers */
       for (i = 0; i < BUTTON_TOTAL; i++)
-        BESButtonMap[player][i] = sqlite3_column_int(dbStatement, i);
+        BESJoystickButtonMap[player][i] = sqlite3_column_int(dbStatement, i);
       /* Vertical and horizontal axis numbers */
       for (i = 0; i < AXIS_TOTAL; i++)
-        BESButtonMap[player][i+BUTTON_TOTAL] = 
+        BESJoystickButtonMap[player][i+BUTTON_TOTAL] = 
           sqlite3_column_int(dbStatement, (BUTTON_TOTAL + i) );
       /* Axis invert settings */
-      BESAxisMap[player][AXIS_VERTICAL][AXISSETTING_INVERT] = 
+      BESJoystickAxisSettingMap[player][AXIS_VERTICAL][AXISSETTING_INVERT] = 
         sqlite3_column_int(dbStatement, 11);
-      BESAxisMap[player][AXIS_HORIZONTAL][AXISSETTING_INVERT] =
+      BESJoystickAxisSettingMap[player][AXIS_HORIZONTAL][AXISSETTING_INVERT] =
         sqlite3_column_int(dbStatement, 12);
       /* deadzone setting in the db is 0 (20%), 1 (40%), or 2 (60%) */
       deadzone = sqlite3_column_int(dbStatement, 13) + 1;
       deadzone *= 6400;
-      BESAxisMap[player][AXIS_VERTICAL][AXISSETTING_DEADZONE] = deadzone;
-      BESAxisMap[player][AXIS_HORIZONTAL][AXISSETTING_DEADZONE] = deadzone;
+      BESJoystickAxisSettingMap[player][AXIS_VERTICAL][AXISSETTING_DEADZONE] = deadzone;
+      BESJoystickAxisSettingMap[player][AXIS_HORIZONTAL][AXISSETTING_DEADZONE] = deadzone;
       /* Pause combo (if there is one) */
       pauseCombo = std::string((const char *)sqlite3_column_text(dbStatement, 14));
       for (i = 0; i < pauseCombo.length(); i++)
@@ -85,17 +86,76 @@ bool loadControlDatabase(void) {
   sqlite3_finalize(dbStatement);
   sqlite3_close(db);
 
-fprintf(stderr, "Gamepad #1:\n");
+  /* Debugging output */
+  fprintf(stderr, "Gamepad #1:\n");
   for(i=0; i < (BUTTON_TOTAL + AXIS_TOTAL); i++) 
-    fprintf(stderr, "  [%d]: %d\n", i, BESButtonMap[0][i]);
-fprintf(stderr, "\nGamepad #2:\n");
+    fprintf(stderr, "  [%d]: %d\n", i, BESJoystickButtonMap[0][i]);
+  fprintf(stderr, "\nGamepad #2:\n");
   for(i=0; i < (BUTTON_TOTAL + AXIS_TOTAL); i++)
-    fprintf(stderr, "  [%d]: %d\n", i, BESButtonMap[1][i]);
+    fprintf(stderr, "  [%d]: %d\n", i, BESJoystickButtonMap[1][i]);
 
   return true;
 }
 
 bool loadGPIODatabase(void) {
+  uint8_t i = 0;
+  sqlite3 *db = NULL;
+  sqlite3_stmt *dbStatement = NULL;
+  int dbCode = 0;
+  std::string dbQuery;
+
+  /* Open database */
+  if (sqlite3_open(DATABASE_NAME, &db))
+  {
+    fprintf(stderr, "ERROR: Unable to open database '%s'\n", sqlite3_errmsg(db));
+    sqlite3_close(db);
+    db = NULL;
+    return false;
+  }
+
+  /* Prepare the database query */
+  dbQuery = "SELECT * FROM GPIO";
+  if (sqlite3_prepare_v2(db, dbQuery.c_str(), dbQuery.length(), &dbStatement, NULL))
+  {
+    fprintf(stderr, "ERROR: Unable to prepare 'GPIO' database query (%s)\n",
+      sqlite3_errmsg(db));
+    sqlite3_close(db);
+    return false;
+  }
+
+  /* Run the query */
+  dbCode = sqlite3_step(dbStatement);
+  while (dbCode != SQLITE_DONE) {
+    /* If the database is busy, wait 10us and try again */
+    while (dbCode == SQLITE_BUSY)
+    {
+      usleep(10);
+      dbCode = sqlite3_step(dbStatement);
+    }
+    /* Do we have a new row? */
+    if (dbCode == SQLITE_ROW) {
+      /* GP[L, R, U, D], L, R, A, B, X, Y, Select, Start, Pause GPIO numbers */
+      for (i = 0; i < GPIO_TOTAL; i++)
+        BESGPIOMap[i] = sqlite3_column_int(dbStatement, i);
+    /* Was there a problem with performing the query? */
+    } else if (dbCode != SQLITE_DONE) {
+      fprintf(stderr, "ERROR: Problem performing 'GPIO' database query (%s), %d\n",
+        sqlite3_errmsg(db), dbCode);
+      sqlite3_close(db);
+      return false;
+    }
+    dbCode = sqlite3_step(dbStatement);
+  } /* End while */
+
+  /* Done, so close the database */
+  sqlite3_finalize(dbStatement);
+  sqlite3_close(db);
+
+  /* Debugging output */
+  fprintf(stderr, "GPIO:\n");
+  for(i=0; i < (BUTTON_TOTAL + AXIS_TOTAL); i++) 
+    fprintf(stderr, "  [%d]: %d\n", i, BESGPIOMap[i]);
+
   return true;
 }
 

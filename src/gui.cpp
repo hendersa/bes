@@ -12,6 +12,8 @@
 #include <SDL/SDL_mixer.h>
 
 #include "gui.h"
+#include "besKeys.h"
+#include "besControls.h"
 
 #if defined(BEAGLEBONE_BLACK)
 // USB hotplugging work around hack
@@ -21,6 +23,7 @@
 #endif
 
 #if !defined(BUILD_SNES)
+extern char ipAddress[20];
 pthread_t loadingThread;
 static void *loadingThreadFunc(void *);
 
@@ -39,14 +42,18 @@ SDL_Rect guiPiece[TOTAL_PIECES] = {
 };
 guiSize_t guiSize;
 
-static int i, retVal, done;
+static int done;
 
 #if !defined(BUILD_SNES)
 bool guiQuit;
 static SDL_Surface *logo;
 static SDL_Surface *gradient;
+static SDL_Surface *ipImage;
+
 static SDL_Rect gradientRect = {0, GRADIENT_Y_POS, 0, 0};
 static SDL_Rect logoRect = {55, 30, 0, 0};
+static SDL_Rect ipRect = {380, 40, 0, 0};
+
 SDL_Surface *screen1024;
 #endif /* BUILD_SNES */
 SDL_Surface *screen256, *screen512, *screenPause;
@@ -236,8 +243,10 @@ int doGuiSetup(void)
   EGLBlitGL(screen->pixels);
   EGLFlip();
 
-  gpioEvents();
+  /* Get everything loaded and setup */
   loadFonts();
+  loadControlDatabase();
+  BESProcessEvents();
 #endif /* BUILD_SNES */
 
   return(0);
@@ -263,6 +272,8 @@ void enableGuiAudio(void)
 
 void *loadingThreadFunc(void *)
 {
+  std::string ip;
+
   logo = IMG_Load("gfx/bes_logo_trans.png");
   gradient = IMG_Load("gfx/gradient.png");
 
@@ -277,6 +288,12 @@ void *loadingThreadFunc(void *)
   loadGBAGui();
   if (vGameInfo.size() == 0)
     loadNoGamesGui();
+
+  /* Render IP address */
+  ip = "Current IP Address: ";
+  ip += ipAddress;
+  ipImage = TTF_RenderText_Blended(fontFSB16, ip.c_str(), textColor);
+  printf("IP STRING: '%s'\n", ip.c_str());
   pthread_exit(0);
 }
 
@@ -299,6 +316,9 @@ int doGui(void) {
   EGLSrcSizeGui(720, 480, guiSize);
   done = 0;
 
+  /* Clear out previous events */
+  while ( SDL_PollEvent(&event) ) {}
+
   if (vGameInfo.size() == 0)
   {
     SDL_FillRect(screen, NULL, 0x0);
@@ -309,9 +329,6 @@ int doGui(void) {
     return 0;
   }
 
-  SDL_BlitSurface(gradient, NULL, screen, &gradientRect);
-  SDL_BlitSurface(logo, NULL, screen, &logoRect);
-
   /* Check for joysticks */
   BESResetJoysticks();
 
@@ -319,6 +336,7 @@ int doGui(void) {
   SDL_FillRect(screen, NULL, 0x0);
   SDL_BlitSurface(gradient, NULL, screen, &gradientRect);
   SDL_BlitSurface(logo, NULL, screen, &logoRect);
+  SDL_BlitSurface(ipImage, NULL, screen, &ipRect);
   SDL_UpdateRect(screen, 0, 0, 0, 0);
   startAudio();
 
@@ -333,7 +351,7 @@ int doGui(void) {
     if (guiSize != GUI_SMALL)
     {
       renderGameInfo(screen, currentSelectedGameIndex(), force);
-      renderInstruct(screen, BESControllerPresent[0]);
+      renderInstruct(screen, BESJoystickPresent[0]);
       force = false;
     }
 
@@ -344,17 +362,18 @@ int doGui(void) {
 
     EGLBlitGL(screen->pixels);
     EGLFlip();
-#if defined(BEAGLEBONE_BLACK)
-    gpioEvents();
-#endif /* BEAGLEBONE_BLACK */
 
-    /* Check for events */
+    /* Consume GPIO/PRU input events and create key events */
+    BESProcessEvents();
+
+    /* Process regular input events */
     while ( SDL_PollEvent(&event) ) {
       switch (event.type) {
         case SDL_JOYBUTTONDOWN:
         case SDL_JOYBUTTONUP:
         case SDL_JOYAXISMOTION:
-          handleJoystickEvent(&event);
+          /* Consume these events and create key events */
+          BESProcessJoystickEvent(&event);
           break;
 
         case SDL_MOUSEBUTTONDOWN:
@@ -362,18 +381,12 @@ int doGui(void) {
 
         case SDL_KEYUP:
           switch (event.key.keysym.sym) {
-            case SDLK_UP:
-            case SDLK_DOWN:
-            case SDLK_a: /* Left trigger */
-            case SDLK_s: /* Right trigger */
+            case BES_P1_DU:
+            case BES_P1_DD:
+            case BES_P1_BL: /* Left trigger */
+            case BES_P1_BR: /* Right trigger */
               menuPressDirection = 0;
               break;
-#if 0 // AWH
-            case SDLK_LEFT:
-            case SDLK_RIGHT:
-              volumePressDirection = 0;
-              break;
-#endif // AWH
             default:
               break;
           }
@@ -382,48 +395,44 @@ int doGui(void) {
         case SDL_KEYDOWN:
           switch (event.key.keysym.sym) {
 #if 0 // AWH
-            case SDLK_LEFT:
+            case BES_P1_DL:
               shiftSelectedVolumeUp();
               break;
-            case SDLK_RIGHT:
+            case BES_P1_DR:
               shiftSelectedVolumeDown();
               break;
 #endif // AWH
             /* Gamepad left trigger */
-            case SDLK_a:
+            case BES_P1_BL:
               menuPressDirection = -1;
               menuPressDirectionStep = 6;
               break;
             /* Gamepad right trigger */
-            case SDLK_s:
+            case BES_P1_BR:
               menuPressDirection = 1;
               menuPressDirectionStep = 6;
               break;
             /* Gamepad up */
-            case SDLK_UP:
+            case BES_P1_DU:
               menuPressDirection = -1;
               menuPressDirectionStep = 1;
               break;
             /* Gamepad down */
-            case SDLK_DOWN:
+            case BES_P1_DD:
               menuPressDirection = 1;
               menuPressDirectionStep = 1;
               break;
-            /* Gamepad start */
-            case SDLK_RETURN:
-            /* Gamepad select */
-            case SDLK_BACKSPACE:
+            /* Gamepad select/start */
+            case BES_P1_SE:
+            case BES_P1_ST:
               if (acceptButton()) {
                 playSelectSnd();
                 done = 1;
               }
               break;
-            case SDLK_ESCAPE:
+            case BES_QUIT:
               guiQuit = true;
               done = true;
-              break;
-            case SDLK_n:
-              // AWH doPauseGui("TEST.ROM", PLATFORM_SNES);
               break;
             default:
               break;

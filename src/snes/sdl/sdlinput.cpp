@@ -36,10 +36,12 @@
 #include "snes9x.h"
 #include "port.h"
 #include "controls.h"
-#if 1 // AWH - BeagleSNES
-#include "gui.h" // AWH - BeagleSNES
+#if 1 /* BeagleSNES */
+#include "gui.h"
+#include "besControls.h"
 extern const char *rom_filename;
-#endif // AWH
+#endif /* BeagleSNES */
+
 using namespace std;
 std::map <string, int> name_sdlkeysym;
 
@@ -76,7 +78,7 @@ bool8 S9xMapInput (const char *n, s9xcommand_t *cmd)
 {
 	int	i, j, d;
 	char	*c;
-fprintf(stderr, "AWH: S9xMapInput('%s', ...)\n", n);
+
 	// domaemon: linking PseudoPointer# and command
 	if (!strncmp(n, "PseudoPointer", 13))
 	{
@@ -364,10 +366,9 @@ void S9xProcessEvents (bool8 block)
 {
 	SDL_Event event;
 	bool8 quit_state = FALSE;
-#if 1 // AWH - BeagleSNES
-        //beagleSNESCheckJoysticks();
+#if 1 /* BeagleSNES */
 	BESCheckJoysticks();
-#endif // BeagleSNES
+#endif /* BeagleSNES */
 	while ((block) || (SDL_PollEvent (&event) != 0))
 	{
 		switch (event.type) {
@@ -413,7 +414,7 @@ fprintf(stderr, "AWH: quit_state = TRUE\n");
 		case SDL_JOYBUTTONUP:
 		case SDL_JOYAXISMOTION:
 #if 1 /* AWH - BeagleSNES */
-			handleJoystickEvent(&event);
+			BESProcessJoystickEvent(&event);
 #else
 			S9xReportButton(0x80000000 | // joystick button
 					(event.jbutton.which << 24) | // joystick index

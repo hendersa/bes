@@ -28,8 +28,8 @@ int snes_main(const char *romname)
   char buffer[BUF_SIZE];
 
   /* nice-ing this to -20 causes audio buffer underrun driver bug... */
-  snprintf(buffer, BUF_SIZE - 1, "%s -conf %s \"%s\"\n", BIN_NAME, CONF_NAME, romname);
-
+  snprintf(buffer, BUF_SIZE - 1, "%s %s -conf %s \"%s\"\n", BIN_NAME, (audioAvailable ? "" : "-nosound"), CONF_NAME, romname);
+  fprintf(stderr, "launch: '%s'\n", buffer);
   shutdownVideo();
   status = system(buffer);
   reinitVideo();
