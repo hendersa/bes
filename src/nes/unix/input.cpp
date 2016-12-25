@@ -54,7 +54,6 @@ static bool translate_key(const char *substr, SDL_Event &evt)
 
 	evt.key.keysym.sym = (SDLKey)0;
 	evt.key.keysym.mod = (SDLMod)0;
-
 	if (substr[0] != '_')	// literal case
 	{
 		evt.key.keysym.sym = SDLKey(tolower(substr[0]));
@@ -253,11 +252,15 @@ InputDefT *parse_input_file()
 	sprintf(dirname, "%s/.nestopia/nstcontrols", home);
 #else
 	sprintf(dirname, "%s/nstcontrols", /*BES_FILE_ROOT_DIR*/".");
+	fprintf(stderr, "parse_input_file() -> \"%s\"\n", dirname);
 #endif // AWH
 
  	infile = fopen(dirname, "r");
 	if (!infile)
 	{
+#if 1 /* AWH - BES */
+		fprintf(stderr, "ERROR: Could not open NES control file \"%s\"\n", dirname);
+#endif /* BES */
 		return NULL;
 	}
 
@@ -292,6 +295,7 @@ InputDefT *parse_input_file()
 	return controls;
 
 LFail:
+fprintf(stderr, "ERROR: nstcontrols LFail!\n");
 	free(controls);
 	return NULL;
 }

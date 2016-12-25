@@ -865,12 +865,12 @@ static const InputDefT *nst_match(const SDL_Event &evt, const InputDefT *pind, b
 		{
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
-				#ifdef DEBUG_INPUT
+				//#ifdef DEBUG_INPUT
 				if (evt.type == SDL_KEYDOWN)
 				{
-					printf("key is down: sym %x mod %x vs sym %x mod %x\n", evt.key.keysym.sym, evt.key.keysym.mod, pind->evt.key.keysym.sym, pind->evt.key.keysym.mod);
+					//printf("key is down: sym %x mod %x vs sym %x mod %x\n", evt.key.keysym.sym, evt.key.keysym.mod, pind->evt.key.keysym.sym, pind->evt.key.keysym.mod);
 				}
-				#endif
+				//#endif
 
 				match = (pind->evt.type == SDL_KEYDOWN && pind->evt.key.keysym.sym == evt.key.keysym.sym);
 				// do better mod checking
@@ -949,7 +949,6 @@ static const InputDefT *nst_match(const SDL_Event &evt, const InputDefT *pind, b
 				break;
 			}
 		}
-
 		if (match)
 		{
 			return pind;
@@ -966,10 +965,8 @@ static void nst_dispatch(Input::Controllers *controllers, const SDL_Event &evt)
 	const InputDefT *pind = NULL;
 
 	controllers->vsSystem.insertCoin = 0;
-
 	while ((pind = nst_match(evt, pind, on)) != NULL)
 	{
-		//fprintf(stderr, "AWH: nst_dispatch -> on: %d\n", on);
 		if (on)
 		{
 			if (pind->player == 0)
@@ -1276,6 +1273,9 @@ int nes_main(const char *romname)
 		{
 			gtk_main_iteration();
 		}
+#else
+		/* Handle GPIO/PRU events */
+		BESProcessEvents();
 #endif // AWH		
 		if (playing)
 		{
@@ -1299,7 +1299,7 @@ int nes_main(const char *romname)
 								BESPauseState = PAUSE_CACHE;
 							else							
 								nst_dispatch(cNstPads, event);
-							break;
+						break;
 						case SDL_JOYHATMOTION:
 						case SDL_JOYAXISMOTION:
 						case SDL_JOYBUTTONDOWN:

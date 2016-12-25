@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -10,7 +11,7 @@
 
 #include <SDL.h>
 
-//#include "gui.h"
+#include "beagleboard.h"
 #include "besKeys.h"
 #include "besPru.h"
 #include "besControls.h"
@@ -19,6 +20,7 @@
 #define PRU_BITS 12
 static uint32_t lastPRUSample = 0xFFFFFFFF;
 static uint32_t pruEnabled = 0;
+uint32_t BESPRUGamepadPresent[PLAYER_TOTAL] = {1, 1};
 
 /* Map of SDL keysyms to PRU bits to create key events when PRU bits set */
 static SDLKey BESPRUMap[PLAYER_TOTAL][PRU_BITS] = {
@@ -36,7 +38,17 @@ static SDLKey BESPRUMap[PLAYER_TOTAL][PRU_BITS] = {
 /* Because things are NEVER easy, remap the button order of the SNES 
   controller protocol via the PRU to the order used in the rest of BES 
   to handle the pause combo. */
-static int8_t pruRemap[PRU_BITS] = { 3, 5, 6, 7, -1, -1, -1, -1, 2, 4, 0, 1 };
+//static int8_t pruRemap[PRU_BITS] = { 3, 5, 6, 7, -1, -1, -1, -1, 2, 4, 0, 1 };
+static int8_t pruRemap[(PRU_BITS * 2)] = { 3, -1, /* B */ 
+  5, -1,  /* Y */
+  6, -1,  /* Select */ 
+  7, -1,  /* Start */
+  -1, -1, -1, -1, -1, -1, -1, -1, /* D-pad */
+  2, -1,  /* A */
+  4, -1,  /* X */
+  0, -1,  /* L */
+  1, -1   /* R */
+};
 
 /* Functions in pru.cpp (TI-licensed code, so it can't go in this file) */
 extern uint32_t BESPRUSetup(void);
@@ -46,6 +58,7 @@ extern uint32_t BESPRUCheckState(void);
 
 /* ---- START: GPIO gamepad constants/variables/functions ---- */
 #define GPIO_DATA_IN_REG	0x138
+#define GPIO_DATA_OUT_REG	0x13C
 #define GPIO_SETDATAOUT		0x194
 #define GPIO_CLEARDATAOUT	0x190
 #define NUM_GPIO_BANKS 4
@@ -110,7 +123,7 @@ static SDLKey gamepadAxisKeyMap[PLAYER_TOTAL][AXIS_TOTAL][2] = {
   }
 };
 
-/* Gamepad maps to keys: L, R, A, B, X, Y, Select, Start, Pause */
+/* Gamepad maps to keys: L, R, A, B, X, Y, Start, Select, Pause */
 static SDLKey BESKeyMap[PLAYER_TOTAL][BUTTON_TOTAL] = {
   {BES_P1_BL, BES_P1_BR, BES_P1_BA, BES_P1_BB,
 #if !defined(BUILD_SNES)
@@ -118,9 +131,9 @@ static SDLKey BESKeyMap[PLAYER_TOTAL][BUTTON_TOTAL] = {
 #else
     BES_P1_BX, BES_P1_BY,
 #endif /* BUILD_SNES */
-    BES_P1_SE, BES_P1_ST, BES_PAUSE},
+    BES_P1_ST, BES_P1_SE, BES_PAUSE},
   {BES_P2_BL, BES_P2_BR, BES_P2_BA, BES_P2_BB, BES_P2_BX,
-    BES_P2_BY, BES_P2_SE, BES_P2_ST, BES_PAUSE}
+    BES_P2_BY, BES_P2_ST, BES_P2_SE, BES_PAUSE}
 };
 
 #if defined(BEAGLEBONE_BLACK)
@@ -168,6 +181,7 @@ void BESCheckJoysticks(void) {
 #endif
     update = false;
     retVal = readlink(joystickPath[i], tempBuf, sizeof(tempBuf)-1);
+
     if ((retVal == -1) /* No joystick */ &&
       ((oldJoystickState >> i) & 0x1) /* Joystick was plugged in */ )
     {
@@ -190,25 +204,25 @@ void BESCheckJoysticks(void) {
 #if defined(BEAGLEBONE_BLACK)
     if (retVal != -1) {
       /* Are we updating the gamepad in the USB host port? */
-      if (i < NUM_JOYSTICKS) {
+      if (i < PLAYER_TOTAL) {
         BESDeviceMap[tempBuf[retVal - 1] - '0'] = i;
-        BESControllerPresent[i] = 1;
+        BESJoystickPresent[i] = 1;
       /* Are we updating gamepads plugged into a USB hub? */
       } else {
-        BESDeviceMap[tempBuf[retVal - 1] - '0'] = (i-NUM_JOYSTICKS);
-        BESControllerPresent[(i-NUM_JOYSTICKS)] = 1;
+        BESDeviceMap[tempBuf[retVal - 1] - '0'] = (i-PLAYER_TOTAL);
+        BESJoystickPresent[(i-PLAYER_TOTAL)] = 1;
       }
     }
     else
     {
       /* Are we updating the gamepad in the USB host port? */
-      if (i < NUM_JOYSTICKS) {
+      if (i < PLAYER_TOTAL) {
         BESDeviceMap[i] = -1;
-        BESControllerPresent[i] = 0;
+        BESJoystickPresent[i] = 0;
       /* Are we updating gamepads plugged into a USB hub? */
       } else {
-        BESDeviceMap[(i-NUM_JOYSTICKS)] = -1;
-        BESControllerPresent[(i-NUM_JOYSTICKS)] = 0;
+        BESDeviceMap[(i-PLAYER_TOTAL)] = -1;
+        BESJoystickPresent[(i-PLAYER_TOTAL)] = 0;
       }
     }
 #else
@@ -333,16 +347,33 @@ static void processPRUInput(void)
 
   /* Change in the PRU state since the last sample */
   rawPRUData = BESPRUCheckState();
+#if 0
+  /* Is controller 0 plugged in? */
+  if (rawPRUData & 0xA) /* Bit pattern 1010 */
+    BESPRUGamepadPresent[0] = 1;
+  else 
+    BESPRUGamepadPresent[0] = 0;
+
+  /* Is controller 1 plugged in? */
+  if (rawPRUData & 0x5) /* Bit pattern 0101 */
+    BESPRUGamepadPresent[1] = 1;
+  else
+    BESPRUGamepadPresent[1] = 0;
+#endif
   if (lastPRUSample != rawPRUData) {
-    SDL_Event event;
     xorDiff = lastPRUSample ^ rawPRUData;
     lastPRUSample = rawPRUData;
 
     for (controller=0; controller < PLAYER_TOTAL; controller++) {
-      for (i = 0; i < PRU_BITS; i++) {
+      SDL_Event event;
+      event.key.keysym.mod = KMOD_NONE;
 
+      if (BESPRUGamepadPresent[controller])
+      {
+      for (i = 0; i < PRU_BITS; i++) {
+        event.key.state = SDL_RELEASED;
         /* Isolate the bit */
-        bit = ((i*2) + controller);
+        bit = 31 - ((i*2) + controller);
 
         /* Did this bit change? */
         if (xorDiff & (1 << bit))
@@ -351,15 +382,16 @@ static void processPRUInput(void)
           event.key.keysym.sym = BESPRUMap[controller][i];
           /* Determine if it is a keyup or keydown */
           if (lastPRUSample & (1 << bit)) {
-            event.type = SDL_KEYDOWN;
-            if (pruRemap[bit] != -1) {
-              BESPauseComboCurrent |= (1 << pruRemap[bit]);
+            event.type = SDL_KEYUP;
+            if (pruRemap[/*bit*/((i*2) + controller)] != -1) {
+              BESPauseComboCurrent &= ~(1 << pruRemap[/*bit*/((i*2) + controller)]);
             }
           } 
           else {
-            event.type = SDL_KEYUP;
-            if (pruRemap[bit] != -1) {
-              BESPauseComboCurrent &= ~(1 << pruRemap[bit]);
+            event.type = SDL_KEYDOWN;
+            event.key.state = SDL_PRESSED;
+            if (pruRemap[/*bit*/((i*2) + controller)] != -1) {
+              BESPauseComboCurrent |= (1 << pruRemap[/*bit*/((i*2) + controller)]);
             }
           }
           
@@ -375,6 +407,8 @@ static void processPRUInput(void)
           SDL_PushEvent(&event);
         } /* end if */
       } /* end for loop */
+
+      } /* end if controller present */
     } /* end for loop */
   } /* end if */
 
@@ -468,6 +502,22 @@ uint32_t BESGPIOSetup(void)
   return(gpioEnabled);
 }
 
+void BESGPIOToggle(const int gpio, const int value)
+{
+  uint32_t reg, mask;
+  uint8_t bank;
+
+  if (!gpioEnabled) return;
+
+  bank = gpio / 32;
+  mask = 1 << (gpio % 32);
+  reg = gpios[bank][GPIO_DATA_OUT_REG / 4];
+  if (value)
+    gpios[bank][GPIO_DATA_OUT_REG/4] |= mask;
+  else
+    gpios[bank][GPIO_DATA_OUT_REG/4] = (reg & (0xFFFFFFFF - mask));
+}
+ 
 static void processGPIOInput(void)
 {
   SDL_Event event;
@@ -554,12 +604,17 @@ void BESProcessEvents(void)
 
   if (pruEnabled)
     processPRUInput();
+
 }
 
 void BESControlSetup(void)
 {
   BESGPIOSetup();
   pruEnabled = BESPRUSetup();
+  if (!pruEnabled) {
+    BESPRUGamepadPresent[0] = 0;
+    BESPRUGamepadPresent[1] = 0;
+  }
 }
 
 void BESControlShutdown(void)

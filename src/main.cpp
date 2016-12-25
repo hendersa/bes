@@ -16,6 +16,7 @@
 #include <SDL.h>
 #include "gui.h"
 #include "besControls.h"
+#include "besCartDisplay.h"
 
 char ipAddress[20];
 
@@ -35,12 +36,13 @@ int main (int argc, char **argv)
 		strcpy(ipAddress, "[No IP assigned]");
 
 	printf("IP Address: %s\n", ipAddress);
-	
+  
 	if (doGuiSetup())
 	{
 		fprintf(stderr, "Failure on init, exiting...\n");
 		return(0);
 	}
+	
         enableGuiAudio(); /* Turn on the audio subsystem */
         doGuiLoadingThread(); /* Start the thread loading in the background */
         doSplashScreen(); /* Splash screen */
@@ -48,13 +50,20 @@ int main (int argc, char **argv)
 
         /* Set up GPIO and PRU inputs */
         BESControlSetup();
+	BESCartOpenDisplay(); /* Enable the cartridge TFT display */
 
 	while(1)
 	{
+		system("../bes-config-node/run.sh");
 		printf("Entering GUI...\n");
 		enableGuiAudio();
+		BESCartDisplayMenu();
 		guiReturn = doGui();
+		BESCartDisplayGame(vGameInfo[guiReturn].platform, vGameInfo[guiReturn].gameTitle); /* TFT */
 		disableGuiAudio();
+
+		/* Kill web interface */
+		system("../bes-config-node/kill.sh");
 		if (guiQuit) break;
 		printf("Done with GUI...\n");
 		fprintf(stderr, "rom_filename: %s\n", vGameInfo[guiReturn].romFile.c_str());
@@ -64,6 +73,7 @@ int main (int argc, char **argv)
 		/* Launch the emulator */
 		BESPauseState = PAUSE_NONE;
 		BESPauseComboCurrent = 0;
+		
 		switch(vGameInfo[guiReturn].platform)
 		{
 			case PLATFORM_SNES:
@@ -93,7 +103,9 @@ int main (int argc, char **argv)
 		BESPauseComboCurrent = 0;
 	}
 	EGLShutdown();
-	BESControlShutdown();
+	BESControlShutdown(); /* Shutdown GPIO/PRU inputs */
+	BESCartCloseDisplay(); /* Shutdown catridge TFT display */
+
 	return (0);
 }
 

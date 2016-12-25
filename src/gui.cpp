@@ -14,6 +14,7 @@
 #include "gui.h"
 #include "besKeys.h"
 #include "besControls.h"
+#include "besCartDisplay.h"
 
 #if defined(BEAGLEBONE_BLACK)
 // USB hotplugging work around hack
@@ -162,6 +163,7 @@ int doGuiSetup(void)
     fprintf(stderr, "Couldn't initialize audio: %s\n",SDL_GetError());
     audioAvailable = 0;
   }
+  audioAvailable = 1;
 
   /* Set video mode */
 #if defined(PC_PLATFORM)
@@ -267,6 +269,7 @@ void enableGuiAudio(void)
     fprintf(stderr, "Couldn't initialize audio: %s\n",SDL_GetError());
     audioAvailable = 0;
   }
+  audioAvailable = 1;
   initAudio();
 }
 
@@ -294,6 +297,7 @@ void *loadingThreadFunc(void *)
   ip += ipAddress;
   ipImage = TTF_RenderText_Blended(fontFSB16, ip.c_str(), textColor);
   printf("IP STRING: '%s'\n", ip.c_str());
+
   pthread_exit(0);
 }
 
@@ -351,7 +355,7 @@ int doGui(void) {
     if (guiSize != GUI_SMALL)
     {
       renderGameInfo(screen, currentSelectedGameIndex(), force);
-      renderInstruct(screen, BESJoystickPresent[0]);
+      renderInstruct(screen, BESJoystickPresent[0] | BESPRUGamepadPresent[0]);
       force = false;
     }
 

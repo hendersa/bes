@@ -368,6 +368,7 @@ void S9xProcessEvents (bool8 block)
 	bool8 quit_state = FALSE;
 #if 1 /* BeagleSNES */
 	BESCheckJoysticks();
+	BESProcessEvents();
 #endif /* BeagleSNES */
 	while ((block) || (SDL_PollEvent (&event) != 0))
 	{

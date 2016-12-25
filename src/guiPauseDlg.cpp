@@ -75,7 +75,11 @@ void *tex512buffer = NULL;
 static SDL_Surface *pauseGui = NULL;
 
 static uint32_t bgColor;
+#if defined(BUILD_SNES)
 static const char *headerText = "BeagleSNES PAUSED";
+#else
+static const char *headerText = "BES PAUSED";
+#endif /* BUILD_SNES */
 static const char *menuText[5] = { "Resume Game", "Load Snapshot", 
 	"Save Snapshot", "Return To Game Menu", "LAST SNAPSHOT" }; 
 static SDL_Surface *menuImage[7] = { 
@@ -337,6 +341,7 @@ uint32_t doPauseGui(const char *romname, const enumPlatform_t platform)
 						case BES_DEBUG:
 							forceUnpause = 1;
 						case BES_P1_SE:
+						case BES_P1_ST:
 							done = 1;
 							break;
 						default:

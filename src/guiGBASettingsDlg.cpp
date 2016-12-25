@@ -262,6 +262,7 @@ void doGBAGui(void)
 							shiftSelectedItemDown();
 							break;
 						case BES_P1_SE:
+						case BES_P1_ST:
 							done = 1;
 							break;
 						default:

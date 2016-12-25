@@ -6,7 +6,8 @@
 // Latch: P9.13, GPIO0[31]
 // INPUTS
 // Gamepad0: P9.12, GPIO1[28]
-// Gamepad1: P8.26, GPIO1[29]
+// Cape:    Gamepad1: P8.26, GPIO1[29]
+// Console: Gamepad1: P9.14, GPIO1[18]
 
 .origin 0
 .entrypoint INIT
@@ -23,7 +24,7 @@
 
 // Offsets of important bits in the GPIO registers
 #define GAMEPAD0_BIT		#28
-#define GAMEPAD1_BIT		#29
+#define GAMEPAD1_BIT		#18
 #define CLOCK_BIT		t30
 #define LATCH_BIT		t31
 

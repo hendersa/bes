@@ -75,6 +75,7 @@
 #endif
 
 #include "gui.h" /* AWH: BeagleSNES GUI */
+#include "besControls.h" /* AWH: GPIO/PRU input */
 
 /*static*/ const char	*s9x_base_dir        = NULL,
 					*rom_filename        = NULL,
@@ -778,6 +779,7 @@ void S9xExit (void)
 	S9xSaveCheatFile(S9xGetFilename(".cht", CHEAT_DIR));
 #else
 	Memory.SaveSRAM(temp);
+	BESControlShutdown();
 #endif // BeagleSNES
 	S9xResetSaveTimer(FALSE);
 
@@ -988,6 +990,7 @@ fprintf(stderr, "AWH: ROM: '%s'\n", s);
 
 #if 1 // AWH - BeagleSNES - We determine joysticks on the fly
 	//beagleSNESResetJoysticks();
+	BESControlSetup();
 #else
 	S9xInitInputDevices();
 #endif // BeagleSNES

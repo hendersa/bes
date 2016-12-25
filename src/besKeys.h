@@ -21,8 +21,8 @@
 #define BES_P1_BB	SDLK_x
 #define BES_P1_BX	SDLK_d
 #define BES_P1_BY	SDLK_c
-#define BES_P1_SE	SDLK_RETURN
-#define BES_P1_ST	SDLK_BACKSPACE
+#define BES_P1_ST	SDLK_RETURN
+#define BES_P1_SE	SDLK_BACKSPACE
 
 /* Player 2 */
 #define BES_P2_DU	SDLK_g
@@ -35,8 +35,8 @@
 #define BES_P2_BB	SDLK_COMMA
 #define BES_P2_BX	SDLK_l
 #define BES_P2_BY	SDLK_SEMICOLON
-#define BES_P2_SE	SDLK_SLASH
-#define BES_P2_ST	SDLK_PERIOD
+#define BES_P2_ST	SDLK_SLASH
+#define BES_P2_SE	SDLK_PERIOD
 
 /* Pause */
 #define BES_PAUSE	SDLK_n	

@@ -81,6 +81,7 @@ void doSplashScreen(void)
 
 	doTele();
 	usleep(1500000);
+
 	if (!audioAvailable)
 		doAudioDlg();
 

@@ -2,7 +2,7 @@
 OS         = `uname -s -r -m|sed \"s/ /-/g\"|tr \"[A-Z]\" \"[a-z]\"|tr \"/()\" \"___\"`
 BUILDDIR   = .
 
-OBJECTS    = main.o guiLaunch.o guiAudio.o gui.o guiGameInfo.o guiGameList.o guiGamepad.o eglSetup.o eglTexture.o guiSplash.o guiPauseDlg.o savepng.o guiGBASettingsDlg.o guiAudioDlg.o sqlite/sqlite3.o guiNoGamesDlg.o besControls.o besDatabase.o pru.o pru/prussdrv.o
+OBJECTS    = main.o guiLaunch.o guiAudio.o gui.o guiGameInfo.o guiGameList.o guiGamepad.o eglSetup.o eglTexture.o guiSplash.o guiPauseDlg.o savepng.o guiGBASettingsDlg.o guiAudioDlg.o sqlite/sqlite3.o guiNoGamesDlg.o besControls.o besDatabase.o besCartDisplay.o pru.o pru/prussdrv.o
 
 GBA_OBJS   = gba/7z_C/7zAlloc.o gba/7z_C/7zBuf.o gba/7z_C/7zCrc.o gba/7z_C/7zCrcOpt.o gba/7z_C/7zDec.o gba/7z_C/7zIn.o gba/7z_C/7zStream.o gba/7z_C/Bcj2.o gba/7z_C/Bra86.o gba/7z_C/Bra.o gba/7z_C/CpuArch.o gba/7z_C/Lzma2Dec.o gba/7z_C/LzmaDec.o gba/7z_C/Ppmd7.o gba/7z_C/Ppmd7Dec.o
 GBA_OBJS  += gba/apu/Blip_Buffer.o gba/apu/Effects_Buffer.o gba/apu/Gb_Apu.o gba/apu/Gb_Apu_State.o gba/apu/Gb_Oscs.o gba/apu/Multi_Buffer.o

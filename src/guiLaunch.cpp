@@ -7,6 +7,7 @@
 #include <sys/wait.h>
 #include "gui.h"
 #include "beagleboard.h"
+#include "besControls.h"
 
 #define BUF_SIZE 1024
 
@@ -30,9 +31,11 @@ int snes_main(const char *romname)
   /* nice-ing this to -20 causes audio buffer underrun driver bug... */
   snprintf(buffer, BUF_SIZE - 1, "%s %s -conf %s \"%s\"\n", BIN_NAME, (audioAvailable ? "" : "-nosound"), CONF_NAME, romname);
   fprintf(stderr, "launch: '%s'\n", buffer);
+  BESControlShutdown();
   shutdownVideo();
   status = system(buffer);
   reinitVideo();
+  BESControlSetup();
   if (status == -1)
     fprintf(stderr, "system() failed!\n"); 
   return 0;

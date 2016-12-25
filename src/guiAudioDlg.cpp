@@ -241,6 +241,7 @@ void doAudioDlg(void)
 				case SDL_KEYDOWN:
 					switch (event.key.keysym.sym) {
 						case BES_P1_SE:
+						case BES_P1_ST:
 							done = 1;
 							break;
 						default:

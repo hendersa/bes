@@ -1,5 +1,6 @@
 #ifndef __BESCONTROLS_H__
 #define __BESCONTROLS_H__
+
 /* These are the functions that map inputs from the various input
   methods (USB gamepad, GPIO, and PRU SNES gamepads) into the 
   keyboard events used by the various emulators. */
@@ -77,7 +78,9 @@ typedef enum {
 extern void BESControlSetup(void);
 extern void BESControlShutdown(void);
 extern void BESProcessEvents(void);
+extern void BESGPIOToggle(const int gpio, const int value);
 extern uint8_t BESGPIOMap[GPIO_TOTAL];
+extern uint32_t BESPRUGamepadPresent[PLAYER_TOTAL];
 
 /* Setup/shutdown/process USB gamepad inputs */
 extern void BESResetJoysticks(void);

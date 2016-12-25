@@ -76,7 +76,7 @@ uint32_t BESPRUSetup(void)
     tpruss_intc_initdata pruss_intc_initdata = PRUSS_INTC_INITDATA;
 
     if (pruEnabled) return 0;
-
+fprintf(stderr, "BESPRUSetup: About to init the PRUSS\n");
     /* Initialize the PRU */
     prussdrv_init ();
 
@@ -84,7 +84,7 @@ uint32_t BESPRUSetup(void)
     ret = prussdrv_open(PRU_EVTOUT_0);
     if (ret)
     {
-        printf("prussdrv_open open failed\n");
+        fprintf(stderr, "prussdrv_open open failed\n");
         return(pruEnabled);
     }
 
@@ -92,21 +92,27 @@ uint32_t BESPRUSetup(void)
     prussdrv_pruintc_init(&pruss_intc_initdata);
 
     /* Execute gamepad firmware on PRU */
-    printf("\tINFO: Executing example.\r\n");
+    fprintf(stderr, "\tINFO: Executing example.\r\n");
     prussdrv_exec_program (PRU_NUM, "./gamepad.bin");
 
     /* Allocate Shared PRU memory. */
-    prussdrv_map_prumem(PRUSS0_SHARED_DATARAM, &sharedMem);
-    sharedMem_int = (uint32_t *) sharedMem;
+    //prussdrv_map_prumem(PRUSS0_SHARED_DATARAM, &sharedMem);
+    //sharedMem_int = (uint32_t *) sharedMem;
 
     /* Done! */
     pruEnabled = 1;
+fprintf(stderr, "PRU enabled!\n");
     return pruEnabled;
 }
 
 uint32_t BESPRUCheckState(void)
 {
-    if (!pruEnabled) return 0xFFFFFFFF;
+    if (!pruEnabled) return 0x0; //FFFFFFFF;
+
+    /* Allocate Shared PRU memory. */
+    prussdrv_map_prumem(PRUSS0_SHARED_DATARAM, &sharedMem);
+    sharedMem_int = (uint32_t *) sharedMem;
+
     return(sharedMem_int[OFFSET_SHAREDRAM]);
 }
 
